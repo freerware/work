@@ -9,6 +9,9 @@ import (
 // Unit represents an atomic set of entity changes.
 type Unit interface {
 
+	// Register tracks the provided entities as clean.
+	Register(...interface{})
+
 	// Add marks the provided entities as new additions.
 	Add(...interface{}) error
 
@@ -24,13 +27,17 @@ type Unit interface {
 }
 
 type unit struct {
-	inserters   map[TypeName]Inserter
-	updaters    map[TypeName]Updater
-	deleters    map[TypeName]Deleter
-	additions   map[TypeName][]interface{}
-	alterations map[TypeName][]interface{}
-	removals    map[TypeName][]interface{}
-	logger      *zap.Logger
+	inserters       map[TypeName]Inserter
+	updaters        map[TypeName]Updater
+	deleters        map[TypeName]Deleter
+	additions       map[TypeName][]interface{}
+	alterations     map[TypeName][]interface{}
+	removals        map[TypeName][]interface{}
+	registered      map[TypeName][]interface{}
+	additionCount   int
+	alterationCount int
+	removalCount    int
+	logger          *zap.Logger
 }
 
 func newUnit(parameters UnitParameters) unit {
@@ -41,6 +48,7 @@ func newUnit(parameters UnitParameters) unit {
 		additions:   make(map[TypeName][]interface{}),
 		alterations: make(map[TypeName][]interface{}),
 		removals:    make(map[TypeName][]interface{}),
+		registered:  make(map[TypeName][]interface{}),
 		logger:      parameters.Logger,
 	}
 	return u
@@ -68,6 +76,15 @@ func (u *unit) logDebug(message string, fields ...zap.Field) {
 	}
 }
 
+// Register tracks the provided entities as clean.
+func (u *unit) Register(entities ...interface{}) {
+	for _, entity := range entities {
+		tName := TypeNameOf(entity)
+		u.registered[tName] =
+			append(u.registered[tName], entity)
+	}
+}
+
 // Add marks the provided entities as new additions.
 func (u *unit) Add(entities ...interface{}) error {
 	for _, entity := range entities {
@@ -81,6 +98,7 @@ func (u *unit) Add(entities ...interface{}) error {
 			u.additions[tName] = []interface{}{}
 		}
 		u.additions[tName] = append(u.additions[tName], entity)
+		u.additionCount = u.additionCount + 1
 	}
 	return nil
 }
@@ -98,6 +116,7 @@ func (u *unit) Alter(entities ...interface{}) error {
 			u.alterations[tName] = []interface{}{}
 		}
 		u.alterations[tName] = append(u.alterations[tName], entity)
+		u.alterationCount = u.alterationCount + 1
 	}
 	return nil
 }
@@ -115,6 +134,7 @@ func (u *unit) Remove(entities ...interface{}) error {
 			u.removals[tName] = []interface{}{}
 		}
 		u.removals[tName] = append(u.removals[tName], entity)
+		u.removalCount = u.removalCount + 1
 	}
 	return nil
 }

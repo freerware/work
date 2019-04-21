@@ -134,11 +134,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
 	s._db.ExpectRollback()
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(errors.New("whoa"))
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -175,11 +175,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(errors.New("whoa"))
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -215,19 +215,19 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 	s._db.ExpectRollback()
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(errors.New("whoa"))
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -264,19 +264,19 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(errors.New("whoa"))
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -313,23 +313,23 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterError() {
 	s._db.ExpectRollback()
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(nil)
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(nil)
 	s.deleters[fooType].On(
 		"Delete",
-		[]interface{}{removedEntities[0]},
+		removedEntities[0],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -366,23 +366,23 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterAndRollbackError() {
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(nil)
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(nil)
 	s.deleters[fooType].On(
 		"Delete",
-		[]interface{}{removedEntities[0]},
+		removedEntities[0],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -419,23 +419,23 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(nil)
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(nil)
 	s.deleters[fooType].On(
 		"Delete",
-		[]interface{}{removedEntities[0]},
+		removedEntities[0],
 	).Return().Run(func(args mock.Arguments) { panic("whoa") })
 
 	// action.
@@ -472,23 +472,23 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 	s._db.ExpectRollback()
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(nil)
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(nil)
 	s.deleters[fooType].On(
 		"Delete",
-		[]interface{}{removedEntities[0]},
+		removedEntities[0],
 	).Return().Run(func(args mock.Arguments) { panic("whoa") })
 
 	// action.
@@ -525,23 +525,23 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 	s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(nil)
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(nil)
 	s.deleters[fooType].On(
 		"Delete",
-		[]interface{}{removedEntities[0]},
+		removedEntities[0],
 	).Return(nil)
 
 	// action.
@@ -578,23 +578,23 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	s._db.ExpectCommit()
 	s.inserters[fooType].On(
 		"Insert",
-		[]interface{}{addedEntities[0]},
+		addedEntities[0],
 	).Return(nil)
 	s.inserters[barType].On(
 		"Insert",
-		[]interface{}{addedEntities[1]},
+		addedEntities[1],
 	).Return(nil)
 	s.updaters[fooType].On(
 		"Update",
-		[]interface{}{updatedEntities[0]},
+		updatedEntities[0],
 	).Return(nil)
 	s.updaters[barType].On(
 		"Update",
-		[]interface{}{updatedEntities[1]},
+		updatedEntities[1],
 	).Return(nil)
 	s.deleters[fooType].On(
 		"Delete",
-		[]interface{}{removedEntities[0]},
+		removedEntities[0],
 	).Return(nil)
 
 	// action.

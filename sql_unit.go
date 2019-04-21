@@ -15,7 +15,7 @@ type sqlUnit struct {
 	connectionPool *sql.DB
 }
 
-// NewSQLUnit construcss a work unit for SQL stores.
+// NewSQLUnit constructs a work unit for SQL stores.
 func NewSQLUnit(parameters SQLUnitParameters) (Unit, error) {
 	if parameters.ConnectionPool == nil {
 		return nil, errors.New("must provide connection pool")
@@ -44,14 +44,15 @@ func (u *sqlUnit) Save() (err error) {
 		if r := recover(); r != nil {
 			err = multierr.Combine(
 				fmt.Errorf("panic: unable to save work unit\n%v", r), tx.Rollback())
-			u.logError("panic: unable to save work unit", zap.String("panic", fmt.Sprintf("%v", r)))
+			u.logError("panic: unable to save work unit",
+				zap.String("panic", fmt.Sprintf("%v", r)))
 		}
 	}()
 
 	//insert newly added entities.
-	u.logDebug("attempting to insert entities", zap.Int("count", len(u.additions)))
+	u.logDebug("attempting to insert entities", zap.Int("count", u.additionCount))
 	for typeName, additions := range u.additions {
-		if err = u.inserters[typeName].Insert(additions); err != nil {
+		if err = u.inserters[typeName].Insert(additions...); err != nil {
 			err = multierr.Combine(err, tx.Rollback())
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
@@ -59,9 +60,9 @@ func (u *sqlUnit) Save() (err error) {
 	}
 
 	//update altered entities.
-	u.logDebug("attempting to update entities", zap.Int("count", len(u.alterations)))
+	u.logDebug("attempting to update entities", zap.Int("count", u.alterationCount))
 	for typeName, alterations := range u.alterations {
-		if err = u.updaters[typeName].Update(alterations); err != nil {
+		if err = u.updaters[typeName].Update(alterations...); err != nil {
 			err = multierr.Combine(err, tx.Rollback())
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
@@ -69,9 +70,9 @@ func (u *sqlUnit) Save() (err error) {
 	}
 
 	//delete removed entities.
-	u.logDebug("attempting to remove entities", zap.Int("count", len(u.removals)))
+	u.logDebug("attempting to remove entities", zap.Int("count", u.removalCount))
 	for typeName, removals := range u.removals {
-		if err = u.deleters[typeName].Delete(removals); err != nil {
+		if err = u.deleters[typeName].Delete(removals...); err != nil {
 			err = multierr.Combine(err, tx.Rollback())
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
@@ -82,10 +83,12 @@ func (u *sqlUnit) Save() (err error) {
 		u.logError(err.Error())
 		return
 	}
+
+	totalCount := u.additionCount + u.alterationCount + u.removalCount
 	u.logInfo("successfully saved unit",
-		zap.Int("insertCount", len(u.additions)),
-		zap.Int("updateCount", len(u.alterations)),
-		zap.Int("deleteCount", len(u.removals)),
-		zap.Int("totalCount", len(u.additions)+len(u.alterations)+len(u.removals)))
+		zap.Int("insertCount", u.additionCount),
+		zap.Int("updateCount", u.alterationCount),
+		zap.Int("deleteCount", u.removalCount),
+		zap.Int("totalCount", totalCount))
 	return
 }
