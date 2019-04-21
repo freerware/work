@@ -1,0 +1,15 @@
+language: go
+go:
+    - 1.11
+jobs:
+  include:
+    -
+      stage: 'unit test'
+      install:
+        - go get golang.org/x/tools/cmd/cover
+        - go get github.com/mattn/goveralls
+      before_script:
+        - 'curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh'
+      script:
+        - 'make test'
+        - '$HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN'
