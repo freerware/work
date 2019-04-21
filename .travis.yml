@@ -1,0 +1,11 @@
+language: go
+go:
+    - 1.11
+jobs:
+  include:
+    -
+      stage: 'unit test'
+      before_script:
+        - 'curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh'
+      script:
+        - 'make test'
