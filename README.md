@@ -1,3 +1,5 @@
+<p align="center"><img src="https://dwglogo.com/wp-content/uploads/2017/08/muscles-clipart-ghoper.gif" width="360"></p>
+
 # work
 > A compact library for tracking and committing atomic changes to your entities.
 
@@ -15,158 +17,117 @@ This lets you focus on just writing the code that handles changes when they happ
 
 There are a bundle of benefits you get by using work units:
 
-- easy management of changes to your entities.
-- centralization of save and rollback functionality.
+- easier management of changes to your entities.
 - rollback of changes when chaos ensues.
-- reduce overhead when applying changes.
-- decouple code triggering changes from code that applies the changes.
+- centralization of save and rollback functionality.
+- reduced overhead when applying changes.
+- decoupling of code triggering changes from code that persists the changes.
+- shorter transactions for SQL datastores.
 
-## Example Usage
+## How to use it?
+The following assumes your application has types (`fdm`, `bdm`) that satisfy the [`Inserter`][inserter-doc], [`Updater`][updater-doc], 
+and [`Deleter`][deleter-doc] interfaces, as well as an instance of [`*sql.DB`][db-doc] (`db`).
 
-One type of work unit is the [`SQLUnit`](https://github.com/freerware/work/blob/master/sql_unit.go). This kind of unit manages orchestrating
-changes when using a relational database, such as MySQL or Postgres. 
+### Construction
+Starting with a sample setup,
+```go
+// type names.
+fType, bType :=
+	work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
 
-First, let's kick things off by defining a type that will be responsible for actually 
-interfacing with our database:
-
-```golang
-// EntityDataMapper is responsible for issuing the database calls to modify
-// the underlying SQL database. 
-type EntityDataMapper struct {
-	...
-}
-
-// NewEntityDataMapper constructs a new EntityDataMapper.
-func NewEntityDataMapper(db *sql.DB) EntityDataMapper {
-	return EntityDataMapper{...}
-}
-
-// Insert is responsible for inserting all of newly created entities of the
-// type that this data mapper is responsible for. The work unit will call
-// this method when it has new entities to create.
-func (dm *EntityDataMapper) Insert(entities ...interface{}) error {
-	e := []Entity{}
-	for _, entity := range entities {
-		u, ok := entity.(Entity)
-		if !ok {
-			return errors.New("unrecognized type")
-		}
-		e = append(e, u)
-	}
-	return dm._Insert(e)
-}
-
-// This here is a more strongly typed Insert method. This method is essentially
-// being adapted in the above method.
-func (dm *EntityDataMapper) _Insert(entities ...Entity) error {
-	// inserts the entities to the SQL database using the `database/sql` package.
-}
-
-// Update is responsible for updating existing entities of the
-// type that this data mapper is responsible for. The work unit will call
-// this method when it contains modifications for existing entities.
-func (dm *EntityDataMapper) Update(entities ...interface{}) error {
-	e := []Entity{}
-	for _, entity := range entities {
-		u, ok := entity.(Entity)
-		if !ok {
-			return errors.New("unrecognized type")
-		}
-		e = append(e, u)
-	}
-	return dm._Update(e)
-}
-
-// This here is a more strongly typed Update method. This method is essentially
-// being adapted in the above method.
-func (dm *EntityDataMapper) _Update(entities ...Entity) error {
-	// updates the entities in the SQL database using the `database/sql` package.
-}
-
-// Delete is responsible for removing existing entities of the
-// type that this data mapper is responsible for. The work unit will call
-// this method when it contains removals of existing entities.
-func (dm *EntityDataMapper) Delete(entities ...interface{}) error {
-	e := []Entity{}
-	for _, entity := range entities {
-		u, ok := entity.(Entity)
-		if !ok {
-			return errors.New("unrecognized type")
-		}
-		e = append(e, u)
-	}
-	return dm._Delete(e)
-}
-
-// This here is a more strongly typed Delete method. This method is essentially
-// being adapted in the above method.
-func (dm *EntityDataMapper) _Delete(entities ...Entity) error {
-	// deletes the entities from the SQL database using the `database/sql` package.
-}
-
-// Returns the name of the type that this data mapper works with.
-func (dm *EntityDataMapper) Type() work.TypeName {
-	return work.TypeNameOf(Entity{})
-}
+// parameters.
+i, u, d :=
+	make(map[work.TypeName]work.Inserter),
+	make(map[work.TypeName]work.Updater),
+	make(map[work.TypeName]work.Deleter)
+i[fType], i[bType] = fdm, bdm
+u[fType], u[bType] = fdm, bdm
+d[fType], d[bType] = fdm, bdm
 ```
 
-Next, elsewhere in our code where we need to begin tracking changes to commit to the database, we
-create our work unit:
-
-```golang
-// our database connection pool.
-pool, _ := sql.Open(...)
-
-...
-
-// create work unit.
-inserters := make(map[TypeName]Inserter)
-inserters[dm.Type()] = &dm
-updaters := make(map[TypeName]Updater)
-updaters[dm.Type()] = &dm
-deleters := make(map[TypeName]Deleter)
-deleters[dm.Type()] = &dm
-params := work.SQLUnitParameters {
-	ConnectionPool: pool,
-	UnitParameters: work.UnitParameters {
-		Inserters: inserters,
-		Updaters: updaters,
-		Deleters: deleters,
-	}
-}
-unit, err := work.NewSQLUnit(params)
+we can create SQL work units:
+```go
+// SQL unit construction.
+unit, err := work.NewSQLUnit(work.SQLUnitParameters {
+	ConnectionPool: db,
+	Inserters: i,
+	Updaters: u,
+	Deleters: d,
+})
 if err != nil {
-	panic("unable to create work unit")
+	panic(err)
 }
 ```
 
-And then finally, we indicate to the work unit what changes should be tracked, and then save them!
+or we can create "best effort" units:
+```go
+// best effort unit construction.
+unit, err := work.NewBestEffortUnit(work.UnitParameters {
+	Inserters: i,
+	Updaters: u,
+	Deleters: d,
+})
+if err != nil {
+	panic(err)
+}
+```
 
-```golang
+### Adding
+When creating a new entity, use [`Add`][unit-doc]:
+```go
+additions := interface{}{Foo{}, Bar{}}
+unit.Add(additions...}
+```
 
-...
+### Updating
+When modifying an existing entity, use [`Alter`][unit-doc]:
+```go
+updates := interface{}{Foo{}, Bar{}}
+unit.Alter(updates...)
+```
 
-// entities that we are creating.
-newEntities := //...
+### Removing
+When removing an existing entity, use [`Remove`][unit-doc]:
+```go
+removals := interface{}{Foo{}, Bar{}}
+unit.Remove(removals...)
+```
 
-// entities that we are removing.
-removedEntities := //...
+### Registering 
+When retrieving an existing entity, track it's intial state using [`Register`][unit-doc]:
+```go
+fetched := interface{}{Foo{}, Bar{}}
+unit.Register(fetched...}
+```
 
-// entities that we are updating.
-updatedEntities := //...
-
-//track these changes with the work unit.
-
-unit.Add(newEntities...)
-unit.Alter(updatedEntities...)
-unit.Remove(removedEntities...)
-
-//commit the changes.
+### Saving
+When you are ready to commit your work unit, use [`Save`][unit-doc]:
+```go
 if err := unit.Save(); err != nil {
-	panic("unable to commit changes")
+  panic(err)
 }
 ```
 
+## Contribute
+
+Want to lend us a hand? Check out our guidelines for [contributing][contributing].
+
+## License
+
+We are rocking an [MIT license][mit-license] for this project.
+
+## Code of Conduct
+
+Please check out our [code of conduct][code-of-conduct] to get up to speed how we do things.
+
+[inserter-doc]: https://godoc.org/github.com/freerware/work#Inserter
+[updater-doc]: https://godoc.org/github.com/freerware/work#Updater
+[deleter-doc]: https://godoc.org/github.com/freerware/work#Deleter
+[db-doc]: https://golang.org/pkg/database/sql/#DB
+[unit-doc]: https://godoc.org/github.com/freerware/work#Unit
+[contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
+[mit-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
+[code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
 [doc-img]: https://godoc.org/github.com/freerware/work?status.svg
 [doc]: https://godoc.org/github.com/freerware/work
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
