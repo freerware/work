@@ -120,6 +120,10 @@ We are rocking an [MIT license][mit-license] for this project.
 
 Please check out our [code of conduct][code-of-conduct] to get up to speed how we do things.
 
+## Artwork
+
+Discovered via the interwebs, the artwork was created by Marcus Olsson and Jon Calhoun for [Gophercises][gophercises].
+
 [inserter-doc]: https://godoc.org/github.com/freerware/work#Inserter
 [updater-doc]: https://godoc.org/github.com/freerware/work#Updater
 [deleter-doc]: https://godoc.org/github.com/freerware/work#Deleter
@@ -128,6 +132,7 @@ Please check out our [code of conduct][code-of-conduct] to get up to speed how w
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [mit-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
+[gophercises]: https://gophercises.com
 [doc-img]: https://godoc.org/github.com/freerware/work?status.svg
 [doc]: https://godoc.org/github.com/freerware/work
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
