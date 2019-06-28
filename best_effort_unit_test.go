@@ -2,11 +2,13 @@ package work
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/freerware/work/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
 
@@ -20,6 +22,21 @@ type BestEffortUnitTestSuite struct {
 	inserters map[TypeName]*mocks.Inserter
 	updaters  map[TypeName]*mocks.Updater
 	deleters  map[TypeName]*mocks.Deleter
+	scope     tally.TestScope
+
+	// metrics scope names and tags.
+	scopePrefix                      string
+	saveScopeName                    string
+	saveSuccessScopeName             string
+	saveScopeNameWithTags            string
+	saveSuccessScopeNameWithTags     string
+	rollbackScopeNameWithTags        string
+	rollbackSuccessScopeNameWithTags string
+	rollbackFailureScopeNameWithTags string
+	rollbackScopeName                string
+	rollbackFailureScopeName         string
+	rollbackSuccessScopeName         string
+	tags                             string
 }
 
 func TestBestEffortUnitTestSuite(t *testing.T) {
@@ -27,6 +44,21 @@ func TestBestEffortUnitTestSuite(t *testing.T) {
 }
 
 func (s *BestEffortUnitTestSuite) SetupTest() {
+
+	// initialize metric names.
+	sep := "+"
+	s.scopePrefix = "test"
+	s.tags = "unit_type=best_effort"
+	s.saveScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.save")
+	s.saveScopeNameWithTags = fmt.Sprintf("%s%s%s", s.saveScopeName, sep, s.tags)
+	s.rollbackScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.rollback")
+	s.rollbackScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackScopeName, sep, s.tags)
+	s.saveSuccessScopeName = fmt.Sprintf("%s.success", s.saveScopeName)
+	s.rollbackSuccessScopeName = fmt.Sprintf("%s.success", s.rollbackScopeName)
+	s.rollbackFailureScopeName = fmt.Sprintf("%s.failure", s.rollbackScopeName)
+	s.saveSuccessScopeNameWithTags = fmt.Sprintf("%s%s%s", s.saveSuccessScopeName, sep, s.tags)
+	s.rollbackSuccessScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackSuccessScopeName, sep, s.tags)
+	s.rollbackFailureScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackFailureScopeName, sep, s.tags)
 
 	// test entities.
 	foo := Foo{ID: 28}
@@ -59,13 +91,18 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 		d[t] = m
 	}
 
-	l, _ := zap.NewDevelopment()
+	c := zap.NewDevelopmentConfig()
+	c.DisableStacktrace = true
+	l, _ := c.Build()
+	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	params := UnitParameters{
 		Inserters: i,
 		Updaters:  u,
 		Deleters:  d,
 		Logger:    l,
+		Scope:     ts,
 	}
+	s.scope = ts
 	s.sut = NewBestEffortUnit(params)
 }
 
@@ -95,7 +132,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(err)
+	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
 	s.inserters[barType].On("Insert", addedEntities[1]).Return(err)
 
 	// arrange - rollback invocations.
@@ -115,6 +152,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterError() {
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterAndRollbackError() {
@@ -162,6 +204,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterAndRollbackErr
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterError() {
@@ -192,8 +239,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterError() {
 	err := errors.New("whoa")
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
 	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(err)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(err)
+	s.updaters[barType].On("Update", updatedEntities[1]).Return(err).Once()
+	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
 
 	// arrange - rollback invocations.
 	s.inserters[fooType].On("Insert", removedEntities[0]).Return(nil)
@@ -212,6 +259,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterError() {
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterAndRollbackError() {
@@ -241,6 +293,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterAndRollbackErro
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
 	s.updaters[fooType].On("Update", updatedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
@@ -311,6 +364,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterError() {
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterAndRollbackError() {
@@ -340,6 +398,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterAndRollbackErro
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
 	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
 	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
 	s.deleters[fooType].On("Delete", removedEntities[0]).Return(err)
@@ -361,6 +420,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterAndRollbackErro
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
@@ -390,6 +454,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
 	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
 	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
 	s.deleters[fooType].
@@ -413,6 +478,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError() {
@@ -442,8 +512,9 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
 	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil).Once()
 	s.deleters[fooType].
 		On("Delete", removedEntities[0]).
 		Return().Run(func(args mock.Arguments) { panic("whoa") })
@@ -465,6 +536,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
@@ -500,6 +576,10 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.NoError(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 1)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TearDownTest() {

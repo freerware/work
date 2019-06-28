@@ -3,12 +3,14 @@ package work
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/freerware/work/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
 
@@ -21,9 +23,24 @@ type SQLUnitTestSuite struct {
 	// mocks.
 	db        *sql.DB
 	_db       sqlmock.Sqlmock
+	scope     tally.TestScope
 	inserters map[TypeName]*mocks.Inserter
 	updaters  map[TypeName]*mocks.Updater
 	deleters  map[TypeName]*mocks.Deleter
+
+	// metrics scope names and tags.
+	scopePrefix                      string
+	saveScopeName                    string
+	saveSuccessScopeName             string
+	saveScopeNameWithTags            string
+	saveSuccessScopeNameWithTags     string
+	rollbackScopeNameWithTags        string
+	rollbackSuccessScopeNameWithTags string
+	rollbackFailureScopeNameWithTags string
+	rollbackScopeName                string
+	rollbackFailureScopeName         string
+	rollbackSuccessScopeName         string
+	tags                             string
 }
 
 func TestSQLUnitTestSuite(t *testing.T) {
@@ -31,6 +48,21 @@ func TestSQLUnitTestSuite(t *testing.T) {
 }
 
 func (s *SQLUnitTestSuite) SetupTest() {
+
+	// initialize metric names.
+	sep := "+"
+	s.scopePrefix = "test"
+	s.tags = "unit_type=sql"
+	s.saveScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.save")
+	s.saveScopeNameWithTags = fmt.Sprintf("%s%s%s", s.saveScopeName, sep, s.tags)
+	s.rollbackScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.rollback")
+	s.rollbackScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackScopeName, sep, s.tags)
+	s.saveSuccessScopeName = fmt.Sprintf("%s.success", s.saveScopeName)
+	s.rollbackSuccessScopeName = fmt.Sprintf("%s.success", s.rollbackScopeName)
+	s.rollbackFailureScopeName = fmt.Sprintf("%s.failure", s.rollbackScopeName)
+	s.saveSuccessScopeNameWithTags = fmt.Sprintf("%s%s%s", s.saveSuccessScopeName, sep, s.tags)
+	s.rollbackSuccessScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackSuccessScopeName, sep, s.tags)
+	s.rollbackFailureScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackFailureScopeName, sep, s.tags)
 
 	// test entities.
 	foo := Foo{ID: 28}
@@ -67,16 +99,21 @@ func (s *SQLUnitTestSuite) SetupTest() {
 		d[t] = m
 	}
 
-	l, _ := zap.NewDevelopment()
+	c := zap.NewDevelopmentConfig()
+	c.DisableStacktrace = true
+	l, _ := c.Build()
+	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	params := SQLUnitParameters{
 		UnitParameters: UnitParameters{
 			Inserters: i,
 			Updaters:  u,
 			Deleters:  d,
 			Logger:    l,
+			Scope:     ts,
 		},
 		ConnectionPool: s.db,
 	}
+	s.scope = ts
 	s.sut, err = NewSQLUnit(params)
 	s.Require().NoError(err)
 }
@@ -109,6 +146,10 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_TransactionBeginError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 1)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
@@ -150,6 +191,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
@@ -191,6 +237,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 
@@ -239,6 +290,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
@@ -288,6 +344,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterError() {
@@ -341,6 +402,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterAndRollbackError() {
@@ -394,6 +460,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterAndRollbackError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
@@ -447,6 +518,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
@@ -469,7 +545,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
-	s._db.ExpectRollback()
+	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 	s.inserters[fooType].On(
 		"Insert",
 		addedEntities[0],
@@ -500,6 +576,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
@@ -553,6 +634,10 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 1)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
@@ -606,9 +691,14 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.NoError(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 1)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TearDownTest() {
 	s.db.Close()
 	s.sut = nil
+	s.scope = nil
 }

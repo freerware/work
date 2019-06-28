@@ -15,7 +15,10 @@
 
 package work
 
-import "go.uber.org/zap"
+import (
+	"github.com/uber-go/tally"
+	"go.uber.org/zap"
+)
 
 // UnitParameters represents the collection of
 // dependencies and configuration needed for a work unit.
@@ -35,4 +38,7 @@ type UnitParameters struct {
 
 	//Logger represents the logger that the work unit will utilize.
 	Logger *zap.Logger
+
+	//Scope represents the metric scope that the work unit will utilize.
+	Scope tally.Scope
 }

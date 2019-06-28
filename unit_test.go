@@ -5,6 +5,7 @@ import (
 
 	"github.com/freerware/work/mocks"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
 
@@ -65,12 +66,16 @@ func (s *UnitTestSuite) SetupTest() {
 		d[t] = m
 	}
 
-	l, _ := zap.NewDevelopment()
+	c := zap.NewDevelopmentConfig()
+	c.DisableStacktrace = true
+	l, _ := c.Build()
+	m := tally.NewTestScope("test", map[string]string{})
 	params := UnitParameters{
 		Inserters: i,
 		Updaters:  u,
 		Deleters:  d,
 		Logger:    l,
+		Scope:     m,
 	}
 	s.sut = newUnit(params)
 }
