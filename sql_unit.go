@@ -20,8 +20,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/uber-go/tally"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+)
+
+var (
+	sqlUnitTag map[string]string = map[string]string{
+		"unit_type": "sql",
+	}
 )
 
 type sqlUnit struct {
@@ -40,16 +47,97 @@ func NewSQLUnit(parameters SQLUnitParameters) (Unit, error) {
 		unit:           newUnit(parameters.UnitParameters),
 		connectionPool: parameters.ConnectionPool,
 	}
+
+	if u.hasScope() {
+		u.scope = u.scope.Tagged(sqlUnitTag)
+	}
+
 	return &u, nil
+}
+
+func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
+
+	//setup timer and metrics.
+	if u.hasScope() {
+		stopWatch := u.scope.Timer("rollback").Start()
+		defer func() {
+			stopWatch.Stop()
+			if err != nil {
+				u.scope.Counter("rollback.failure").Inc(1)
+			} else {
+				u.scope.Counter("rollback.success").Inc(1)
+			}
+		}()
+	}
+
+	err = tx.Rollback()
+	return
+}
+
+func (u *sqlUnit) applyInserts(tx *sql.Tx) (err error) {
+	u.logDebug("attempting to insert entities", zap.Int("count", u.additionCount))
+	for typeName, additions := range u.additions {
+		if err = u.inserters[typeName].Insert(additions...); err != nil {
+			err = multierr.Combine(err, u.rollback(tx))
+			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			return
+		}
+	}
+	return
+}
+
+func (u *sqlUnit) applyUpdates(tx *sql.Tx) (err error) {
+	u.logDebug("attempting to update entities", zap.Int("count", u.alterationCount))
+	for typeName, alterations := range u.alterations {
+		if err = u.updaters[typeName].Update(alterations...); err != nil {
+			err = multierr.Combine(err, u.rollback(tx))
+			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			return
+		}
+	}
+	return
+}
+
+func (u *sqlUnit) applyDeletes(tx *sql.Tx) (err error) {
+	u.logDebug("attempting to remove entities", zap.Int("count", u.removalCount))
+	for typeName, removals := range u.removals {
+		if err = u.deleters[typeName].Delete(removals...); err != nil {
+			err = multierr.Combine(err, u.rollback(tx))
+			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			return
+		}
+	}
+	return
 }
 
 // Save commits the new additions, modifications, and removals
 // within the work unit to an SQL store.
 func (u *sqlUnit) Save() (err error) {
 
+	//setup timer.
+	var stopWatch tally.Stopwatch
+	if u.hasScope() {
+		stopWatch = u.scope.Timer("save").Start()
+		defer func() {
+			stopWatch.Stop()
+			if err == nil {
+				u.scope.Counter("save.success").Inc(1)
+			}
+		}()
+	}
+
+	rs := func() {
+		if u.hasScope() {
+			u.scope.Counter("rollback.success").Inc(1)
+		}
+	}
+
 	//start transaction.
 	tx, err := u.connectionPool.Begin()
 	if err != nil {
+		// consider a failure to begin transaction as successful rollback,
+		// since none of the desired changes are applied.
+		rs()
 		u.logError(err.Error())
 		return
 	}
@@ -58,43 +146,32 @@ func (u *sqlUnit) Save() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = multierr.Combine(
-				fmt.Errorf("panic: unable to save work unit\n%v", r), tx.Rollback())
+				fmt.Errorf("panic: unable to save work unit\n%v", r), u.rollback(tx))
 			u.logError("panic: unable to save work unit",
 				zap.String("panic", fmt.Sprintf("%v", r)))
 		}
 	}()
 
 	//insert newly added entities.
-	u.logDebug("attempting to insert entities", zap.Int("count", u.additionCount))
-	for typeName, additions := range u.additions {
-		if err = u.inserters[typeName].Insert(additions...); err != nil {
-			err = multierr.Combine(err, tx.Rollback())
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
-			return
-		}
+	if err = u.applyInserts(tx); err != nil {
+		return
 	}
 
 	//update altered entities.
-	u.logDebug("attempting to update entities", zap.Int("count", u.alterationCount))
-	for typeName, alterations := range u.alterations {
-		if err = u.updaters[typeName].Update(alterations...); err != nil {
-			err = multierr.Combine(err, tx.Rollback())
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
-			return
-		}
+	if err = u.applyUpdates(tx); err != nil {
+		return
 	}
 
 	//delete removed entities.
-	u.logDebug("attempting to remove entities", zap.Int("count", u.removalCount))
-	for typeName, removals := range u.removals {
-		if err = u.deleters[typeName].Delete(removals...); err != nil {
-			err = multierr.Combine(err, tx.Rollback())
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
-			return
-		}
+	if err = u.applyDeletes(tx); err != nil {
+		return
 	}
 
 	if err = tx.Commit(); err != nil {
+		// consider error during transaction commit as successful rollback,
+		// since the rollback is implicitly done.
+		// please see https://golang.org/src/database/sql/sql.go#L1991 for reference.
+		rs()
 		u.logError(err.Error())
 		return
 	}

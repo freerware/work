@@ -18,6 +18,7 @@ package work
 import (
 	"fmt"
 
+	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
 
@@ -53,9 +54,14 @@ type unit struct {
 	alterationCount int
 	removalCount    int
 	logger          *zap.Logger
+	scope           tally.Scope
 }
 
 func newUnit(parameters UnitParameters) unit {
+	var scope tally.Scope
+	if parameters.Scope != nil {
+		scope = parameters.Scope.SubScope("unit")
+	}
 	u := unit{
 		inserters:   parameters.Inserters,
 		updaters:    parameters.Updaters,
@@ -65,6 +71,7 @@ func newUnit(parameters UnitParameters) unit {
 		removals:    make(map[TypeName][]interface{}),
 		registered:  make(map[TypeName][]interface{}),
 		logger:      parameters.Logger,
+		scope:       scope,
 	}
 	return u
 }
@@ -89,6 +96,10 @@ func (u *unit) logDebug(message string, fields ...zap.Field) {
 	if u.hasLogger() {
 		u.logger.Debug(message, fields...)
 	}
+}
+
+func (u *unit) hasScope() bool {
+	return u.scope != nil
 }
 
 // Register tracks the provided entities as clean.

@@ -48,10 +48,12 @@ d[fType], d[bType] = fdm, bdm
 we can create SQL work units:
 ```go
 unit, err := work.NewSQLUnit(work.SQLUnitParameters{
+	UnitParameters: UnitParameters{
+		Inserters: i,
+		Updaters:  u,
+		Deleters:  d,
+	},
 	ConnectionPool: db,
-	Inserters:      i,
-	Updaters:       u,
-	Deleters:       d,
 })
 if err != nil {
 	panic(err)
@@ -103,38 +105,64 @@ unit.Register(fetched...)
 When you are ready to commit your work unit, use [`Save`][unit-doc]:
 ```go
 if err := unit.Save(); err != nil {
-  panic(err)
+	panic(err)
 }
 ```
 
 ### Logging
 We use [`zap`][zap] as our logging library of choice. To leverage the logs emitted from the work units, simply pass in an instance of [`*zap.Logger`][logger-doc] upon creation:
 ```go
-l := zap.NewDevelopment()
+l, _ := zap.NewDevelopment()
 
 // create an SQL unit with logging.
 unit, err := work.NewSQLUnit(work.SQLUnitParameters{
+	UnitParameters: UnitParameters{
+		Logger:    l,
+		Inserters: i,
+		Updaters:  u,
+		Deleters:  d,
+	},
 	ConnectionPool: db,
-	Logger:         l,
-	Inserters:      i,
-	Updaters:       u,
-	Deleters:       d,
 })
 if err != nil {
 	panic(err)
 }
 ```
 
+### Metrics
+For emitting metrics, we use [`tally`][tally]. To utilize the metrics emitted from the work units, pass in a [`Scope`][scope-doc] upon creation. Assuming we have an a scope `s`, it would look like so:
+```go
+unit, err := work.NewBestEffortUnit(work.UnitParameters{
+	Scope:     s,
+	Inserters: i,
+	Updaters:  u,
+	Deleters:  d,
+})
+if err != nil {
+	panic(err)
+}
+```
+
+#### Emitted Metrics
+
+| Name                             | Type    | Description                                      |
+| -------------------------------- | ------- | ------------------------------------------------ |
+| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.        |
+| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.       |
+| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.    |
+| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.  |
+| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit. |
+
 ### Uniters
 In most circumstances, an application has many aspects that result in the creation of a work unit. To tackle that challenge, we recommend using [`Uniter`][uniter-doc]s to create instances of [`Unit`][unit-doc], like so:
 ```go
-// create the SQL uniter.
 uniter := work.NewSQLUniter(work.SQLUnitParameters{
+	UnitParameters: UnitParameters{
+		Inserters: i,
+		Updaters:  u,
+		Deleters:  d,
+	},
 	ConnectionPool: db,
-	Logger:         l,
-	Inserters:      i,
-	Updaters:       u,
-	Deleters:       d,
 })
 
 // create the unit.
@@ -167,7 +195,9 @@ Discovered via the interwebs, the artwork was created by Marcus Olsson and Jon C
 [db-doc]: https://golang.org/pkg/database/sql/#DB
 [unit-doc]: https://godoc.org/github.com/freerware/work#Unit
 [zap]: https://github.com/uber-go/zap
+[tally]: https://github.com/uber-go/tally
 [logger-doc]: https://godoc.org/go.uber.org/zap#Logger
+[scope-doc]: https://godoc.org/github.com/uber-go/tally#Scope
 [uniter-doc]: https://godoc.org/github.com/freerware/work#Uniter
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
