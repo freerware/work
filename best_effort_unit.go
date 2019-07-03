@@ -206,6 +206,7 @@ func (u *bestEffortUnit) Save() (err error) {
 				fmt.Errorf("panic: unable to save work unit\n%v", r), u.rollback())
 			u.logError("panic: unable to save work unit",
 				zap.String("panic", fmt.Sprintf("%v", r)))
+			panic(r)
 		}
 	}()
 

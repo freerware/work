@@ -185,7 +185,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterAndRollbackErr
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
+
+	// must have either inserter return the error, since ordering
+	// of elements in a map is non-deterministic.
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(err)
+	s.inserters[barType].On("Insert", addedEntities[1]).Return(err)
 
 	// arrange - rollback invocations.
 	s.inserters[fooType].On("Insert", removedEntities[0]).Return(nil)
@@ -452,7 +456,6 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
 	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
 	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
 	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
@@ -470,14 +473,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	s.updaters[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
-	// action.
-	err = s.sut.Save()
-
-	// assert.
+	// action + assert.
+	s.Require().Panics(func() { s.sut.Save() })
 	s.Require().NoError(addError)
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
-	s.Error(err)
 	s.Len(s.scope.Snapshot().Counters(), 1)
 	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 2)
@@ -528,10 +528,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	s.updaters[barType].On(
 		"Update", registeredEntities[1]).Return(err)
 
-	// action.
-	err = s.sut.Save()
-
-	// assert.
+	// action + assert.
+	s.Require().Panics(func() { s.sut.Save() })
 	s.Require().NoError(addError)
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
