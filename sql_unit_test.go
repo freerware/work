@@ -509,15 +509,12 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 		removedEntities[0],
 	).Return().Run(func(args mock.Arguments) { panic("whoa") })
 
-	// action.
-	err := s.sut.Save()
-
-	// assert.
+	// action + assert.
+	s.Require().Panics(func() { s.sut.Save() })
 	s.Require().NoError(addError)
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
 	s.Len(s.scope.Snapshot().Counters(), 1)
 	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 2)
@@ -567,15 +564,12 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 		removedEntities[0],
 	).Return().Run(func(args mock.Arguments) { panic("whoa") })
 
-	// action.
-	err := s.sut.Save()
-
-	// assert.
+	// action + assert.
+	s.Require().Panics(func() { s.sut.Save() })
 	s.Require().NoError(addError)
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
 	s.Len(s.scope.Snapshot().Counters(), 1)
 	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 2)
@@ -633,7 +627,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
+	s.Require().Error(err)
 	s.Len(s.scope.Snapshot().Counters(), 1)
 	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 1)
