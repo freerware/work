@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/uber-go/tally"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -57,18 +56,18 @@ func NewSQLUnit(parameters SQLUnitParameters) (Unit, error) {
 
 func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
 
-	//setup timer and metrics.
-	if u.hasScope() {
-		stopWatch := u.scope.Timer("rollback").Start()
-		defer func() {
-			stopWatch.Stop()
-			if err != nil {
-				u.scope.Counter("rollback.failure").Inc(1)
-			} else {
-				u.scope.Counter("rollback.success").Inc(1)
-			}
-		}()
-	}
+	//setup timer.
+	stop := u.startTimer(rollback)
+
+	//log and capture metrics.
+	defer func() {
+		stop()
+		if err != nil {
+			u.incrementCounter(rollbackFailure, 1)
+		} else {
+			u.incrementCounter(rollbackSuccess, 1)
+		}
+	}()
 
 	err = tx.Rollback()
 	return
@@ -115,29 +114,20 @@ func (u *sqlUnit) applyDeletes(tx *sql.Tx) (err error) {
 func (u *sqlUnit) Save() (err error) {
 
 	//setup timer.
-	var stopWatch tally.Stopwatch
-	if u.hasScope() {
-		stopWatch = u.scope.Timer("save").Start()
-		defer func() {
-			stopWatch.Stop()
-			if err == nil {
-				u.scope.Counter("save.success").Inc(1)
-			}
-		}()
-	}
-
-	rs := func() {
-		if u.hasScope() {
-			u.scope.Counter("rollback.success").Inc(1)
+	stop := u.startTimer(save)
+	defer func() {
+		stop()
+		if err == nil {
+			u.incrementCounter(saveSuccess, 1)
 		}
-	}
+	}()
 
 	//start transaction.
 	tx, err := u.connectionPool.Begin()
 	if err != nil {
 		// consider a failure to begin transaction as successful rollback,
 		// since none of the desired changes are applied.
-		rs()
+		u.incrementCounter(rollbackSuccess, 1)
 		u.logError(err.Error())
 		return
 	}
@@ -145,10 +135,9 @@ func (u *sqlUnit) Save() (err error) {
 	//rollback if there is a panic.
 	defer func() {
 		if r := recover(); r != nil {
-			err = multierr.Combine(
-				fmt.Errorf("panic: unable to save work unit\n%v", r), u.rollback(tx))
-			u.logError("panic: unable to save work unit",
-				zap.String("panic", fmt.Sprintf("%v", r)))
+			msg := "panic: unable to save work unit"
+			err = multierr.Combine(fmt.Errorf("%s\n%v", msg, r), u.rollback(tx))
+			u.logError(msg, zap.String("panic", fmt.Sprintf("%v", r)))
 			panic(r)
 		}
 	}()
@@ -172,7 +161,7 @@ func (u *sqlUnit) Save() (err error) {
 		// consider error during transaction commit as successful rollback,
 		// since the rollback is implicitly done.
 		// please see https://golang.org/src/database/sql/sql.go#L1991 for reference.
-		rs()
+		u.incrementCounter(rollbackSuccess, 1)
 		u.logError(err.Error())
 		return
 	}

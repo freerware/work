@@ -533,7 +533,59 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	s.Require().NoError(addError)
 	s.Require().NoError(alterError)
 	s.Require().NoError(removeError)
-	s.Error(err)
+	s.Len(s.scope.Snapshot().Counters(), 1)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Len(s.scope.Snapshot().Timers(), 2)
+	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic() {
+
+	// arrange.
+	fooType := TypeNameOf(Foo{})
+	barType := TypeNameOf(Bar{})
+	addedEntities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+	updatedEntities := []interface{}{
+		Foo{ID: 1992},
+		Bar{ID: "1992"},
+	}
+	removedEntities := []interface{}{
+		Foo{ID: 2},
+	}
+	registeredEntities := []interface{}{
+		Foo{ID: 1992},
+		Bar{ID: "1992"},
+		Foo{ID: 1111},
+	}
+	s.sut.Register(registeredEntities...)
+	addError := s.sut.Add(addedEntities...)
+	alterError := s.sut.Alter(updatedEntities...)
+	removeError := s.sut.Remove(removedEntities...)
+	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil).Once()
+	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil).Once()
+	s.deleters[fooType].
+		On("Delete", removedEntities[0]).
+		Return().Run(func(args mock.Arguments) { panic("whoa") })
+
+	// arrange - rollback invocations.
+	s.updaters[fooType].
+		On("Update", registeredEntities[0], registeredEntities[2]).
+		Return().Run(func(args mock.Arguments) { panic("whoa") })
+	s.updaters[barType].
+		On("Update", registeredEntities[1]).
+		Return().Run(func(args mock.Arguments) { panic("whoa") })
+
+	// action + assert.
+	s.Require().Panics(func() { s.sut.Save() })
+	s.Require().NoError(addError)
+	s.Require().NoError(alterError)
+	s.Require().NoError(removeError)
 	s.Len(s.scope.Snapshot().Counters(), 1)
 	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 2)

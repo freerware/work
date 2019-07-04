@@ -487,7 +487,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
-	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+	s._db.ExpectRollback()
 	s.inserters[fooType].On(
 		"Insert",
 		addedEntities[0],
@@ -516,7 +516,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	s.Require().NoError(removeError)
 	s.Require().NoError(s._db.ExpectationsWereMet())
 	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 2)
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
