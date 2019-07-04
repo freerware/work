@@ -22,6 +22,14 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	rollbackSuccess = "rollback.success"
+	rollbackFailure = "rollback.failure"
+	saveSuccess     = "save.success"
+	save            = "save"
+	rollback        = "rollback"
+)
+
 // Unit represents an atomic set of entity changes.
 type Unit interface {
 
@@ -100,6 +108,20 @@ func (u *unit) logDebug(message string, fields ...zap.Field) {
 
 func (u *unit) hasScope() bool {
 	return u.scope != nil
+}
+
+func (u *unit) incrementCounter(name string, amount int64) {
+	if u.hasScope() {
+		u.scope.Counter(name).Inc(amount)
+	}
+}
+
+func (u *unit) startTimer(name string) func() {
+	var stopFunc func()
+	if u.hasScope() {
+		stopFunc = u.scope.Timer(name).Start().Stop
+	}
+	return stopFunc
 }
 
 // Register tracks the provided entities as clean.

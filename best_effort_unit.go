@@ -18,7 +18,6 @@ package work
 import (
 	"fmt"
 
-	"github.com/uber-go/tally"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -102,17 +101,24 @@ func (u *bestEffortUnit) rollbackDeletes() (err error) {
 func (u *bestEffortUnit) rollback() (err error) {
 
 	//setup timer.
-	if u.hasScope() {
-		stopWatch := u.scope.Timer("rollback").Start()
-		defer func() {
-			stopWatch.Stop()
-			if err != nil {
-				u.scope.Counter("rollback.failure").Inc(1)
-			} else {
-				u.scope.Counter("rollback.success").Inc(1)
-			}
-		}()
-	}
+	stop := u.startTimer(rollback)
+
+	//log and capture metrics if there is a panic.
+	defer func() {
+		stop()
+		if r := recover(); r != nil {
+			msg := "panic: unable to rollback work unit"
+			u.logError(msg, zap.String("panic", fmt.Sprintf("%v", r)))
+			u.incrementCounter(rollbackFailure, 1)
+			panic(r)
+		}
+
+		if err != nil {
+			u.incrementCounter(rollbackFailure, 1)
+		} else {
+			u.incrementCounter(rollbackSuccess, 1)
+		}
+	}()
 
 	if err = u.rollbackDeletes(); err != nil {
 		return
@@ -188,25 +194,20 @@ func (u *bestEffortUnit) applyDeletes() (err error) {
 func (u *bestEffortUnit) Save() (err error) {
 
 	//setup timer.
-	var stopWatch tally.Stopwatch
-	if u.hasScope() {
-		stopWatch = u.scope.Timer("save").Start()
-		defer func() {
-			stopWatch.Stop()
-			if err == nil {
-				u.scope.Counter("save.success").Inc(1)
-			}
-		}()
-	}
+	stop := u.startTimer(save)
 
 	//rollback if there is a panic.
 	defer func() {
+		stop()
 		if r := recover(); r != nil {
 			err = multierr.Combine(
 				fmt.Errorf("panic: unable to save work unit\n%v", r), u.rollback())
 			u.logError("panic: unable to save work unit",
 				zap.String("panic", fmt.Sprintf("%v", r)))
 			panic(r)
+		}
+		if err == nil {
+			u.incrementCounter(saveSuccess, 1)
 		}
 	}()
 
