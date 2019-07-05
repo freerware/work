@@ -156,10 +156,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
-		Bar{ID: "28"},
 	}
 	updatedEntities := []interface{}{
 		Foo{ID: 1992},
@@ -176,10 +174,6 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
 	s.inserters[fooType].On(
 		"Insert",
 		addedEntities[0],
-	).Return(errors.New("whoa"))
-	s.inserters[barType].On(
-		"Insert",
-		addedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -202,10 +196,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
-		Bar{ID: "28"},
 	}
 	updatedEntities := []interface{}{
 		Foo{ID: 1992},
@@ -222,10 +214,6 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
 	s.inserters[fooType].On(
 		"Insert",
 		addedEntities[0],
-	).Return(errors.New("whoa"))
-	s.inserters[barType].On(
-		"Insert",
-		addedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -254,7 +242,6 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 	}
 	updatedEntities := []interface{}{
 		Foo{ID: 1992},
-		Bar{ID: "1992"},
 	}
 	removedEntities := []interface{}{
 		Foo{ID: 2},
@@ -275,10 +262,6 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 	s.updaters[fooType].On(
 		"Update",
 		updatedEntities[0],
-	).Return(errors.New("whoa"))
-	s.updaters[barType].On(
-		"Update",
-		updatedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -308,7 +291,6 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
 	}
 	updatedEntities := []interface{}{
 		Foo{ID: 1992},
-		Bar{ID: "1992"},
 	}
 	removedEntities := []interface{}{
 		Foo{ID: 2},
@@ -329,10 +311,6 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
 	s.updaters[fooType].On(
 		"Update",
 		updatedEntities[0],
-	).Return(errors.New("whoa"))
-	s.updaters[barType].On(
-		"Update",
-		updatedEntities[1],
 	).Return(errors.New("whoa"))
 
 	// action.
@@ -689,6 +667,18 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
 	s.Len(s.scope.Snapshot().Timers(), 1)
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+}
+
+func (s *SQLUnitTestSuite) AfterTest(suiteName, testName string) {
+	for _, i := range s.inserters {
+		i.AssertExpectations(s.T())
+	}
+	for _, u := range s.updaters {
+		u.AssertExpectations(s.T())
+	}
+	for _, d := range s.deleters {
+		d.AssertExpectations(s.T())
+	}
 }
 
 func (s *SQLUnitTestSuite) TearDownTest() {
