@@ -14,9 +14,7 @@ type BestEffortUniterTestSuite struct {
 	sut Uniter
 
 	// mocks.
-	inserters map[TypeName]*mocks.Inserter
-	updaters  map[TypeName]*mocks.Updater
-	deleters  map[TypeName]*mocks.Deleter
+	mappers map[TypeName]*mocks.DataMapper
 }
 
 func TestBestEffortUniterTestSuite(t *testing.T) {
@@ -32,36 +30,17 @@ func (s *BestEffortUniterTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.inserters = make(map[TypeName]*mocks.Inserter)
-	s.inserters[fooTypeName] = &mocks.Inserter{}
-	s.inserters[barTypeName] = &mocks.Inserter{}
-	s.updaters = make(map[TypeName]*mocks.Updater)
-	s.updaters[fooTypeName] = &mocks.Updater{}
-	s.updaters[barTypeName] = &mocks.Updater{}
-	s.deleters = make(map[TypeName]*mocks.Deleter)
-	s.deleters[fooTypeName] = &mocks.Deleter{}
-	s.deleters[barTypeName] = &mocks.Deleter{}
+	s.mappers = make(map[TypeName]*mocks.DataMapper)
+	s.mappers[fooTypeName] = &mocks.DataMapper{}
+	s.mappers[barTypeName] = &mocks.DataMapper{}
 
 	// construct SUT.
-	i := make(map[TypeName]Inserter)
-	for t, m := range s.inserters {
-		i[t] = m
-	}
-	u := make(map[TypeName]Updater)
-	for t, m := range s.updaters {
-		u[t] = m
-	}
-	d := make(map[TypeName]Deleter)
-	for t, m := range s.deleters {
-		d[t] = m
+	dm := make(map[TypeName]DataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
 	}
 
-	params := UnitParameters{
-		Inserters: i,
-		Updaters:  u,
-		Deleters:  d,
-	}
-	s.sut = NewBestEffortUniter(params)
+	s.sut = NewBestEffortUniter(dm)
 }
 
 func (s *BestEffortUniterTestSuite) TestBestEffortUniter_Unit() {

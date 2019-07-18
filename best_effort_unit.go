@@ -16,6 +16,7 @@
 package work
 
 import (
+	"errors"
 	"fmt"
 
 	"go.uber.org/multierr"
@@ -23,7 +24,7 @@ import (
 )
 
 var (
-	bestEffortUnitTag map[string]string = map[string]string{
+	bestEffortUnitTag = map[string]string{
 		"unit_type": "best_effort",
 	}
 )
@@ -31,10 +32,10 @@ var (
 type bestEffortUnit struct {
 	unit
 
-	successfulInserts map[TypeName][]interface{}
-	successfulUpdates map[TypeName][]interface{}
-	successfulDeletes map[TypeName][]interface{}
-
+	mappers               map[TypeName]DataMapper
+	successfulInserts     map[TypeName][]interface{}
+	successfulUpdates     map[TypeName][]interface{}
+	successfulDeletes     map[TypeName][]interface{}
 	successfulInsertCount int
 	successfulUpdateCount int
 	successfulDeleteCount int
@@ -42,9 +43,19 @@ type bestEffortUnit struct {
 
 // NewBestEffortUnit constructs a work unit that when faced
 // with adversity, attempts rollback a single time.
-func NewBestEffortUnit(parameters UnitParameters) Unit {
+func NewBestEffortUnit(
+	mappers map[TypeName]DataMapper, options ...Option) (Unit, error) {
+	if len(mappers) < 1 {
+		return nil, errors.New("must have at least one data mapper")
+	}
+
+	var o UnitOptions
+	for _, applyOption := range options {
+		applyOption(&o)
+	}
 	u := bestEffortUnit{
-		unit:              newUnit(parameters),
+		unit:              newUnit(o),
+		mappers:           mappers,
 		successfulInserts: make(map[TypeName][]interface{}),
 		successfulUpdates: make(map[TypeName][]interface{}),
 		successfulDeletes: make(map[TypeName][]interface{}),
@@ -53,7 +64,7 @@ func NewBestEffortUnit(parameters UnitParameters) Unit {
 	if u.hasScope() {
 		u.scope = u.scope.Tagged(bestEffortUnitTag)
 	}
-	return &u
+	return &u, nil
 }
 
 func (u *bestEffortUnit) rollbackInserts() (err error) {
@@ -62,7 +73,7 @@ func (u *bestEffortUnit) rollbackInserts() (err error) {
 	u.logDebug("attempting to rollback inserted entities",
 		zap.Int("count", u.successfulInsertCount))
 	for typeName, inserts := range u.successfulInserts {
-		if err = u.deleters[typeName].Delete(inserts...); err != nil {
+		if err = u.mappers[typeName].Delete(inserts...); err != nil {
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -76,7 +87,7 @@ func (u *bestEffortUnit) rollbackUpdates() (err error) {
 	u.logDebug("attempting to rollback updated entities",
 		zap.Int("count", u.successfulUpdateCount))
 	for typeName, r := range u.registered {
-		if err = u.updaters[typeName].Update(r...); err != nil {
+		if err = u.mappers[typeName].Update(r...); err != nil {
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -90,7 +101,7 @@ func (u *bestEffortUnit) rollbackDeletes() (err error) {
 	u.logDebug("attempting to rollback deleted entities",
 		zap.Int("count", u.successfulDeleteCount))
 	for typeName, deletes := range u.successfulDeletes {
-		if err = u.inserters[typeName].Insert(deletes...); err != nil {
+		if err = u.mappers[typeName].Insert(deletes...); err != nil {
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -138,7 +149,7 @@ func (u *bestEffortUnit) applyInserts() (err error) {
 
 	u.logDebug("attempting to insert entities", zap.Int("count", len(u.additions)))
 	for typeName, additions := range u.additions {
-		if err = u.inserters[typeName].Insert(additions...); err != nil {
+		if err = u.mappers[typeName].Insert(additions...); err != nil {
 			err = multierr.Combine(err, u.rollback())
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
@@ -157,7 +168,7 @@ func (u *bestEffortUnit) applyUpdates() (err error) {
 
 	u.logDebug("attempting to update entities", zap.Int("count", len(u.alterations)))
 	for typeName, alterations := range u.alterations {
-		if err = u.updaters[typeName].Update(alterations...); err != nil {
+		if err = u.mappers[typeName].Update(alterations...); err != nil {
 			err = multierr.Combine(err, u.rollback())
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
@@ -176,7 +187,7 @@ func (u *bestEffortUnit) applyDeletes() (err error) {
 
 	u.logDebug("attempting to remove entities", zap.Int("count", len(u.removals)))
 	for typeName, removals := range u.removals {
-		if err = u.deleters[typeName].Delete(removals...); err != nil {
+		if err = u.mappers[typeName].Delete(removals...); err != nil {
 			err = multierr.Combine(err, u.rollback())
 			u.logError(err.Error(), zap.String("typeName", typeName.String()))
 			return
@@ -191,6 +202,44 @@ func (u *bestEffortUnit) applyDeletes() (err error) {
 	return
 }
 
+// Register tracks the provided entities as clean.
+func (u *bestEffortUnit) Register(entities ...interface{}) error {
+	c := func(t TypeName) bool {
+		_, ok := u.mappers[t]
+		return ok
+	}
+	return u.register(c, entities...)
+}
+
+// Add marks the provided entities as new additions.
+func (u *bestEffortUnit) Add(entities ...interface{}) error {
+	c := func(t TypeName) bool {
+		_, ok := u.mappers[t]
+		return ok
+	}
+	return u.add(c, entities...)
+}
+
+// Alter marks the provided entities as modifications.
+func (u *bestEffortUnit) Alter(entities ...interface{}) error {
+	c := func(t TypeName) bool {
+		_, ok := u.mappers[t]
+		return ok
+	}
+	return u.alter(c, entities...)
+}
+
+// Remove marks the provided entities as removals.
+func (u *bestEffortUnit) Remove(entities ...interface{}) error {
+	c := func(t TypeName) bool {
+		_, ok := u.mappers[t]
+		return ok
+	}
+	return u.remove(c, entities...)
+}
+
+// Save commits the new additions, modifications, and removals
+// within the work unit to a persistent store.
 func (u *bestEffortUnit) Save() (err error) {
 
 	//setup timer.
@@ -226,11 +275,13 @@ func (u *bestEffortUnit) Save() (err error) {
 		return
 	}
 
-	totalCount := u.additionCount + u.alterationCount + u.removalCount
+	totalCount :=
+		u.additionCount + u.alterationCount + u.removalCount + u.registerCount
 	u.logInfo("successfully saved unit",
 		zap.Int("insertCount", u.additionCount),
 		zap.Int("updateCount", u.alterationCount),
 		zap.Int("deleteCount", u.removalCount),
+		zap.Int("registerCount", u.registerCount),
 		zap.Int("totalCount", totalCount))
 	return
 }

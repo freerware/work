@@ -16,7 +16,7 @@
 package work
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -30,11 +30,19 @@ const (
 	rollback        = "rollback"
 )
 
+var (
+
+	// MissingDataMapperErr represents the error that is returned
+	// when attempting to add, alter, remove, or register an entity
+	// that doesn't have a corresponding data mapper.
+	MissingDataMapperErr error = errors.New("missing data mapper for entity")
+)
+
 // Unit represents an atomic set of entity changes.
 type Unit interface {
 
 	// Register tracks the provided entities as clean.
-	Register(...interface{})
+	Register(...interface{}) error
 
 	// Add marks the provided entities as new additions.
 	Add(...interface{}) error
@@ -51,9 +59,6 @@ type Unit interface {
 }
 
 type unit struct {
-	inserters       map[TypeName]Inserter
-	updaters        map[TypeName]Updater
-	deleters        map[TypeName]Deleter
 	additions       map[TypeName][]interface{}
 	alterations     map[TypeName][]interface{}
 	removals        map[TypeName][]interface{}
@@ -61,24 +66,22 @@ type unit struct {
 	additionCount   int
 	alterationCount int
 	removalCount    int
+	registerCount   int
 	logger          *zap.Logger
 	scope           tally.Scope
 }
 
-func newUnit(parameters UnitParameters) unit {
+func newUnit(options UnitOptions) unit {
 	var scope tally.Scope
-	if parameters.Scope != nil {
-		scope = parameters.Scope.SubScope("unit")
+	if options.Scope != nil {
+		scope = options.Scope.SubScope("unit")
 	}
 	u := unit{
-		inserters:   parameters.Inserters,
-		updaters:    parameters.Updaters,
-		deleters:    parameters.Deleters,
 		additions:   make(map[TypeName][]interface{}),
 		alterations: make(map[TypeName][]interface{}),
 		removals:    make(map[TypeName][]interface{}),
 		registered:  make(map[TypeName][]interface{}),
-		logger:      parameters.Logger,
+		logger:      options.Logger,
 		scope:       scope,
 	}
 	return u
@@ -124,22 +127,29 @@ func (u *unit) startTimer(name string) func() {
 	return stopFunc
 }
 
-// Register tracks the provided entities as clean.
-func (u *unit) Register(entities ...interface{}) {
+func (u *unit) register(checker func(t TypeName) bool, entities ...interface{}) error {
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
-		u.registered[tName] =
-			append(u.registered[tName], entity)
+		if ok := checker(tName); !ok {
+			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			return MissingDataMapperErr
+		}
+		if _, ok := u.registered[tName]; !ok {
+			u.registered[tName] = []interface{}{}
+		}
+		u.registered[tName] = append(u.registered[tName], entity)
+		u.registerCount = u.registerCount + 1
 	}
+	return nil
 }
 
-// Add marks the provided entities as new additions.
-func (u *unit) Add(entities ...interface{}) error {
+func (u *unit) add(checker func(t TypeName) bool, entities ...interface{}) error {
+
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
-		if _, ok := u.inserters[tName]; !ok {
-			u.logError("missing inserter", zap.String("typeName", tName.String()))
-			return fmt.Errorf("missing inserter for entities with type %s", tName)
+		if ok := checker(tName); !ok {
+			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			return MissingDataMapperErr
 		}
 
 		if _, ok := u.additions[tName]; !ok {
@@ -151,13 +161,12 @@ func (u *unit) Add(entities ...interface{}) error {
 	return nil
 }
 
-// Alter marks the provided entities as modifications.
-func (u *unit) Alter(entities ...interface{}) error {
+func (u *unit) alter(checker func(t TypeName) bool, entities ...interface{}) error {
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
-		if _, ok := u.updaters[tName]; !ok {
-			u.logError("missing updater", zap.String("typeName", tName.String()))
-			return fmt.Errorf("missing updater for entities with type %s", tName)
+		if ok := checker(tName); !ok {
+			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			return MissingDataMapperErr
 		}
 
 		if _, ok := u.alterations[tName]; !ok {
@@ -169,13 +178,12 @@ func (u *unit) Alter(entities ...interface{}) error {
 	return nil
 }
 
-// Remove marks the provided entities as removals.
-func (u *unit) Remove(entities ...interface{}) error {
+func (u *unit) remove(checker func(t TypeName) bool, entities ...interface{}) error {
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
-		if _, ok := u.deleters[tName]; !ok {
-			u.logError("missing updater", zap.String("typeName", tName.String()))
-			return fmt.Errorf("missing deleter for entities with type %s", tName)
+		if ok := checker(tName); !ok {
+			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			return MissingDataMapperErr
 		}
 
 		if _, ok := u.removals[tName]; !ok {
