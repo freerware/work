@@ -15,9 +15,12 @@
 
 package work
 
-// Deleter represents a remover of entities.
-type Deleter interface {
+import "database/sql"
 
-	// Delete removes the provided entities from a persistent store.
-	Delete(...interface{}) error
+// SQLDataMapper represents a creator, modifier, and deleter
+// of entities persisted in SQL data stores.
+type SQLDataMapper interface {
+	Insert(*sql.Tx, ...interface{}) error
+	Update(*sql.Tx, ...interface{}) error
+	Delete(*sql.Tx, ...interface{}) error
 }

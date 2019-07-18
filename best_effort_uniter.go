@@ -16,15 +16,20 @@
 package work
 
 type bestEffortUniter struct {
-	parameters UnitParameters
+	mappers map[TypeName]DataMapper
+	options []Option
 }
 
 // NewBestEffortUniter constructs a new best effort unit factory.
-func NewBestEffortUniter(parameters UnitParameters) Uniter {
-	return &bestEffortUniter{parameters: parameters}
+func NewBestEffortUniter(
+	mappers map[TypeName]DataMapper, options ...Option) Uniter {
+	return &bestEffortUniter{
+		mappers: mappers,
+		options: options,
+	}
 }
 
 // Unit constructs a new best effort work unit.
 func (u *bestEffortUniter) Unit() (Unit, error) {
-	return NewBestEffortUnit(u.parameters), nil
+	return NewBestEffortUnit(u.mappers, u.options...)
 }

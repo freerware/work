@@ -25,36 +25,26 @@ There are a bundle of benefits you get by using work units:
 - shorter transactions for SQL datastores.
 
 ## How to use it?
-The following assumes your application has types (`fdm`, `bdm`) that satisfy the [`Inserter`][inserter-doc], [`Updater`][updater-doc], 
-and [`Deleter`][deleter-doc] interfaces, as well as an instance of [`*sql.DB`][db-doc] (`db`).
+
+The following assumes your application has types (`fdm`, `bdm`) that satisfy the [`SQLDataMapper`][sql-data-mapper-doc] and [`DataMapper`][data-mapper-doc] interfaces, as well as [`*sql.DB`][db-doc] (`db`).
 
 ### Construction
-Starting with a sample setup,
+
+Starting with entities `Foo` and `Bar`,
 ```go
 // type names.
 fType, bType :=
 	work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
-
-// parameters.
-i, u, d :=
-	make(map[work.TypeName]work.Inserter),
-	make(map[work.TypeName]work.Updater),
-	make(map[work.TypeName]work.Deleter)
-i[fType], i[bType] = fdm, bdm
-u[fType], u[bType] = fdm, bdm
-d[fType], d[bType] = fdm, bdm
 ```
 
 we can create SQL work units:
 ```go
-unit, err := work.NewSQLUnit(work.SQLUnitParameters{
-	UnitParameters: UnitParameters{
-		Inserters: i,
-		Updaters:  u,
-		Deleters:  d,
-	},
-	ConnectionPool: db,
-})
+mappers := map[work.TypeName]work.SQLDataMapper {
+	fType: fdm,
+	bType: bdm,
+}
+
+unit, err := work.NewSQLUnit(mappers, db)
 if err != nil {
 	panic(err)
 }
@@ -62,12 +52,12 @@ if err != nil {
 
 or we can create "best effort" units:
 ```go
-// best effort unit construction.
-unit, err := work.NewBestEffortUnit(work.UnitParameters{
-	Inserters: i,
-	Updaters:  u,
-	Deleters:  d,
-})
+mappers := map[work.TypeName]work.DataMapper {
+	fType: fdm,
+	bType: bdm,
+}
+
+unit, err := work.NewBestEffortUnit(mappers)
 if err != nil {
 	panic(err)
 }
@@ -115,15 +105,7 @@ We use [`zap`][zap] as our logging library of choice. To leverage the logs emitt
 l, _ := zap.NewDevelopment()
 
 // create an SQL unit with logging.
-unit, err := work.NewSQLUnit(work.SQLUnitParameters{
-	UnitParameters: UnitParameters{
-		Logger:    l,
-		Inserters: i,
-		Updaters:  u,
-		Deleters:  d,
-	},
-	ConnectionPool: db,
-})
+unit, err := work.NewSQLUnit(mappers, db, work.UnitLogger(l))
 if err != nil {
 	panic(err)
 }
@@ -132,12 +114,7 @@ if err != nil {
 ### Metrics
 For emitting metrics, we use [`tally`][tally]. To utilize the metrics emitted from the work units, pass in a [`Scope`][scope-doc] upon creation. Assuming we have an a scope `s`, it would look like so:
 ```go
-unit, err := work.NewBestEffortUnit(work.UnitParameters{
-	Scope:     s,
-	Inserters: i,
-	Updaters:  u,
-	Deleters:  d,
-})
+unit, err := work.NewBestEffortUnit(mappers, work.UnitScope(s))
 if err != nil {
 	panic(err)
 }
@@ -156,14 +133,7 @@ if err != nil {
 ### Uniters
 In most circumstances, an application has many aspects that result in the creation of a work unit. To tackle that challenge, we recommend using [`Uniter`][uniter-doc]s to create instances of [`Unit`][unit-doc], like so:
 ```go
-uniter := work.NewSQLUniter(work.SQLUnitParameters{
-	UnitParameters: UnitParameters{
-		Inserters: i,
-		Updaters:  u,
-		Deleters:  d,
-	},
-	ConnectionPool: db,
-})
+uniter := work.NewSQLUniter(mappers, db)
 
 // create the unit.
 unit, err := uniter.Unit()
@@ -189,9 +159,8 @@ Please check out our [code of conduct][code-of-conduct] to get up to speed how w
 Discovered via the interwebs, the artwork was created by Marcus Olsson and Jon Calhoun for [Gophercises][gophercises].
 
 [uow]: https://martinfowler.com/eaaCatalog/unitOfWork.html
-[inserter-doc]: https://godoc.org/github.com/freerware/work#Inserter
-[updater-doc]: https://godoc.org/github.com/freerware/work#Updater
-[deleter-doc]: https://godoc.org/github.com/freerware/work#Deleter
+[sql-data-mapper-doc]: https://godoc.org/github.com/freerware/work#SQLDataMapper
+[data-mapper-doc]: https://godoc.org/github.com/freerware/work#DataMapper
 [db-doc]: https://golang.org/pkg/database/sql/#DB
 [unit-doc]: https://godoc.org/github.com/freerware/work#Unit
 [zap]: https://github.com/uber-go/zap

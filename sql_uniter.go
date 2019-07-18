@@ -15,16 +15,28 @@
 
 package work
 
+import "database/sql"
+
 type sqlUniter struct {
-	parameters SQLUnitParameters
+	mappers map[TypeName]SQLDataMapper
+	db      *sql.DB
+	options []Option
 }
 
 // NewSQLUniter constructs a new SQL work unit factory.
-func NewSQLUniter(parameters SQLUnitParameters) Uniter {
-	return &sqlUniter{parameters: parameters}
+func NewSQLUniter(
+	mappers map[TypeName]SQLDataMapper,
+	db *sql.DB,
+	options ...Option,
+) Uniter {
+	return &sqlUniter{
+		mappers: mappers,
+		db:      db,
+		options: options,
+	}
 }
 
 // Unit constructs a new SQL work unit.
 func (u *sqlUniter) Unit() (Unit, error) {
-	return NewSQLUnit(u.parameters)
+	return NewSQLUnit(u.mappers, u.db, u.options...)
 }

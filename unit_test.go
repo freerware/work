@@ -3,7 +3,6 @@ package work
 import (
 	"testing"
 
-	"github.com/freerware/work/mocks"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -22,11 +21,6 @@ type UnitTestSuite struct {
 
 	// system under test.
 	sut unit
-
-	// mocks.
-	inserters map[TypeName]*mocks.Inserter
-	updaters  map[TypeName]*mocks.Updater
-	deleters  map[TypeName]*mocks.Deleter
 }
 
 func TestUnitTestSuite(t *testing.T) {
@@ -34,78 +28,44 @@ func TestUnitTestSuite(t *testing.T) {
 }
 
 func (s *UnitTestSuite) SetupTest() {
-
-	// test entities.
-	foo := Foo{ID: 28}
-	fooTypeName := TypeNameOf(foo)
-	bar := Bar{ID: "28"}
-	barTypeName := TypeNameOf(bar)
-
-	// initialize mocks.
-	s.inserters = make(map[TypeName]*mocks.Inserter)
-	s.inserters[fooTypeName] = &mocks.Inserter{}
-	s.inserters[barTypeName] = &mocks.Inserter{}
-	s.updaters = make(map[TypeName]*mocks.Updater)
-	s.updaters[fooTypeName] = &mocks.Updater{}
-	s.updaters[barTypeName] = &mocks.Updater{}
-	s.deleters = make(map[TypeName]*mocks.Deleter)
-	s.deleters[fooTypeName] = &mocks.Deleter{}
-	s.deleters[barTypeName] = &mocks.Deleter{}
-
-	// construct SUT.
-	i := make(map[TypeName]Inserter)
-	for t, m := range s.inserters {
-		i[t] = m
-	}
-	u := make(map[TypeName]Updater)
-	for t, m := range s.updaters {
-		u[t] = m
-	}
-	d := make(map[TypeName]Deleter)
-	for t, m := range s.deleters {
-		d[t] = m
-	}
-
 	c := zap.NewDevelopmentConfig()
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 	m := tally.NewTestScope("test", map[string]string{})
-	params := UnitParameters{
-		Inserters: i,
-		Updaters:  u,
-		Deleters:  d,
-		Logger:    l,
-		Scope:     m,
+	options := UnitOptions{
+		Logger: l,
+		Scope:  m,
 	}
-	s.sut = newUnit(params)
+	s.sut = newUnit(options)
 }
 
 func (s *UnitTestSuite) TestUnit_Add_Empty() {
 
 	// arrange.
 	entities := []interface{}{}
+	c := func(t TypeName) bool { return true }
 
 	// action.
-	err := s.sut.Add(entities...)
+	err := s.sut.add(c, entities...)
 
 	// assert.
 	s.NoError(err)
 }
 
-func (s *UnitTestSuite) TestUnit_Add_MissingInserter() {
+func (s *UnitTestSuite) TestUnit_Add_MissingDataMapper() {
 
 	// arrange.
-	s.sut = newUnit(UnitParameters{})
 	entities := []interface{}{
 		Foo{ID: 28},
-		Bar{ID: "28"},
 	}
+	c := func(t TypeName) bool { return false }
 
 	// action.
-	err := s.sut.Add(entities...)
+	err := s.sut.add(c, entities...)
 
 	// assert.
-	s.Error(err)
+	s.Require().Error(err)
+	s.EqualError(err, ErrMissingDataMapper.Error())
 }
 
 func (s *UnitTestSuite) TestUnit_Add() {
@@ -115,9 +75,10 @@ func (s *UnitTestSuite) TestUnit_Add() {
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
+	c := func(t TypeName) bool { return true }
 
 	// action.
-	err := s.sut.Add(entities...)
+	err := s.sut.add(c, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -127,28 +88,29 @@ func (s *UnitTestSuite) TestUnit_Alter_Empty() {
 
 	// arrange.
 	entities := []interface{}{}
+	c := func(t TypeName) bool { return false }
 
 	// action.
-	err := s.sut.Alter(entities...)
+	err := s.sut.alter(c, entities...)
 
 	// assert.
 	s.NoError(err)
 }
 
-func (s *UnitTestSuite) TestUnit_Alter_MissingUpdater() {
+func (s *UnitTestSuite) TestUnit_Alter_MissingDataMapper() {
 
 	// arrange.
-	s.sut = newUnit(UnitParameters{})
 	entities := []interface{}{
 		Foo{ID: 28},
-		Bar{ID: "28"},
 	}
+	c := func(t TypeName) bool { return false }
 
 	// action.
-	err := s.sut.Alter(entities...)
+	err := s.sut.alter(c, entities...)
 
 	// assert.
-	s.Error(err)
+	s.Require().Error(err)
+	s.EqualError(err, ErrMissingDataMapper.Error())
 }
 
 func (s *UnitTestSuite) TestUnit_Alter() {
@@ -158,9 +120,10 @@ func (s *UnitTestSuite) TestUnit_Alter() {
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
+	c := func(t TypeName) bool { return true }
 
 	// action.
-	err := s.sut.Alter(entities...)
+	err := s.sut.alter(c, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -170,28 +133,30 @@ func (s *UnitTestSuite) TestUnit_Remove_Empty() {
 
 	// arrange.
 	entities := []interface{}{}
+	c := func(t TypeName) bool { return true }
 
 	// action.
-	err := s.sut.Remove(entities...)
+	err := s.sut.remove(c, entities...)
 
 	// assert.
 	s.NoError(err)
 }
 
-func (s *UnitTestSuite) TestUnit_Remove_MissingDeleter() {
+func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 
 	// arrange.
-	s.sut = newUnit(UnitParameters{})
 	entities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
+	c := func(t TypeName) bool { return false }
 
 	// action.
-	err := s.sut.Remove(entities...)
+	err := s.sut.remove(c, entities...)
 
 	// assert.
-	s.Error(err)
+	s.Require().Error(err)
+	s.EqualError(err, ErrMissingDataMapper.Error())
 }
 
 func (s *UnitTestSuite) TestUnit_Remove() {
@@ -201,9 +166,10 @@ func (s *UnitTestSuite) TestUnit_Remove() {
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
+	c := func(t TypeName) bool { return true }
 
 	// action.
-	err := s.sut.Remove(entities...)
+	err := s.sut.remove(c, entities...)
 
 	// assert.
 	s.NoError(err)

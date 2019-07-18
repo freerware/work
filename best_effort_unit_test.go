@@ -19,10 +19,8 @@ type BestEffortUnitTestSuite struct {
 	sut Unit
 
 	// mocks.
-	inserters map[TypeName]*mocks.Inserter
-	updaters  map[TypeName]*mocks.Updater
-	deleters  map[TypeName]*mocks.Deleter
-	scope     tally.TestScope
+	mappers map[TypeName]*mocks.DataMapper
+	scope   tally.TestScope
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -67,46 +65,37 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.inserters = make(map[TypeName]*mocks.Inserter)
-	s.inserters[fooTypeName] = &mocks.Inserter{}
-	s.inserters[barTypeName] = &mocks.Inserter{}
-	s.updaters = make(map[TypeName]*mocks.Updater)
-	s.updaters[fooTypeName] = &mocks.Updater{}
-	s.updaters[barTypeName] = &mocks.Updater{}
-	s.deleters = make(map[TypeName]*mocks.Deleter)
-	s.deleters[fooTypeName] = &mocks.Deleter{}
-	s.deleters[barTypeName] = &mocks.Deleter{}
+	s.mappers = make(map[TypeName]*mocks.DataMapper)
+	s.mappers[fooTypeName] = &mocks.DataMapper{}
+	s.mappers[barTypeName] = &mocks.DataMapper{}
 
 	// construct SUT.
-	i := make(map[TypeName]Inserter)
-	for t, m := range s.inserters {
-		i[t] = m
-	}
-	u := make(map[TypeName]Updater)
-	for t, m := range s.updaters {
-		u[t] = m
-	}
-	d := make(map[TypeName]Deleter)
-	for t, m := range s.deleters {
-		d[t] = m
+	dm := make(map[TypeName]DataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
 	}
 
 	c := zap.NewDevelopmentConfig()
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
-	params := UnitParameters{
-		Inserters: i,
-		Updaters:  u,
-		Deleters:  d,
-		Logger:    l,
-		Scope:     ts,
-	}
 	s.scope = ts
-	s.sut = NewBestEffortUnit(params)
+	var err error
+	s.sut, err = NewBestEffortUnit(dm, UnitLogger(l), UnitScope(ts))
+	s.Require().NoError(err)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterError() {
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_NewBestEffortUnit_MissingDataMappers() {
+
+	// action.
+	var err error
+	s.sut, err = NewBestEffortUnit(map[TypeName]DataMapper{})
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -131,12 +120,12 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(err)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
 	// action.
@@ -154,7 +143,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterAndRollbackError() {
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -178,10 +167,10 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterAndRollbackErr
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
 
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(err)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[1]).Return(err)
 
 	// action.
@@ -199,7 +188,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InserterAndRollbackErr
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterError() {
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -224,16 +213,16 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(err).Once()
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(err).Once()
 
 	// arrange - rollback invocations.
-	s.deleters[fooType].On("Delete", addedEntities[0]).Return(nil)
-	s.deleters[barType].On("Delete", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On("Delete", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Delete", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
 	// action.
@@ -251,7 +240,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterAndRollbackError() {
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -275,14 +264,14 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterAndRollbackErro
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(err)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.deleters[fooType].On("Delete", addedEntities[0]).Return(err)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On("Delete", addedEntities[0]).Return(err)
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
 	// action.
@@ -295,7 +284,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdaterAndRollbackErro
 	s.Error(err)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterError() {
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -321,18 +310,18 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.deleters[fooType].On("Delete", removedEntities[0]).Return(err)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Delete", removedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.deleters[fooType].On("Delete", addedEntities[0]).Return(nil)
-	s.deleters[barType].On("Delete", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On("Delete", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Delete", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
 	// action.
@@ -350,7 +339,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterAndRollbackError() {
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -375,16 +364,16 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleterAndRollbackErro
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.deleters[fooType].On("Delete", removedEntities[0]).Return(err)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Delete", removedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.deleters[fooType].On("Delete", addedEntities[0]).Return(err)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On("Delete", addedEntities[0]).Return(err)
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
 	// action.
@@ -427,20 +416,20 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.deleters[fooType].
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].
 		On("Delete", removedEntities[0]).
 		Return().Run(func(args mock.Arguments) { panic("whoa") })
 
 	// arrange - rollback invocations.
-	s.deleters[fooType].On("Delete", addedEntities[0]).Return(nil)
-	s.deleters[barType].On("Delete", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On("Delete", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Delete", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update", registeredEntities[1]).Return(nil)
 
 	// action + assert.
@@ -480,16 +469,16 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.deleters[fooType].
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].
 		On("Delete", removedEntities[0]).
 		Return().Run(func(args mock.Arguments) { panic("whoa") })
 
 	// arrange - rollback invocations.
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update", registeredEntities[0], registeredEntities[1]).Return(err)
 
 	// action + assert.
@@ -528,16 +517,16 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic(
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.deleters[fooType].
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].
 		On("Delete", removedEntities[0]).
 		Return().Run(func(args mock.Arguments) { panic("whoa") })
 
 	// arrange - rollback invocations.
-	s.updaters[fooType].
+	s.mappers[fooType].
 		On("Update", registeredEntities[0], registeredEntities[1]).
 		Return().Run(func(args mock.Arguments) { panic("whoa") })
 
@@ -572,11 +561,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.inserters[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.inserters[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.updaters[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.updaters[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.deleters[fooType].On("Delete", removedEntities[0]).Return(nil)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Delete", removedEntities[0]).Return(nil)
 
 	// action.
 	err := s.sut.Save()
@@ -592,15 +581,198 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Add_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Add(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Add_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+	}
+	mappers := map[TypeName]DataMapper{
+		TypeNameOf(Bar{}): &mocks.DataMapper{},
+	}
+	var err error
+	s.sut, err = NewBestEffortUnit(mappers)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Add(entities...)
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Add() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Add(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Alter_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Alter(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Alter_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+	}
+	mappers := map[TypeName]DataMapper{
+		TypeNameOf(Bar{}): &mocks.DataMapper{},
+	}
+	var err error
+	s.sut, err = NewBestEffortUnit(mappers)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Alter(entities...)
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Alter() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Alter(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Remove_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Remove(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Remove_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Bar{ID: "28"},
+	}
+	mappers := map[TypeName]DataMapper{
+		TypeNameOf(Foo{}): &mocks.DataMapper{},
+	}
+	var err error
+	s.sut, err = NewBestEffortUnit(mappers)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Remove(entities...)
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Remove() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Remove(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Register(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Bar{ID: "28"},
+	}
+	mappers := map[TypeName]DataMapper{
+		TypeNameOf(Foo{}): &mocks.DataMapper{},
+	}
+	var err error
+	s.sut, err = NewBestEffortUnit(mappers)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Register(entities...)
+
+	// assert.
+	s.Require().Error(err)
+	s.EqualError(err, ErrMissingDataMapper.Error())
+}
+
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Register(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
 func (s *BestEffortUnitTestSuite) AfterTest(suiteName, testName string) {
-	for _, i := range s.inserters {
+	for _, i := range s.mappers {
 		i.AssertExpectations(s.T())
-	}
-	for _, u := range s.updaters {
-		u.AssertExpectations(s.T())
-	}
-	for _, d := range s.deleters {
-		d.AssertExpectations(s.T())
 	}
 }
 

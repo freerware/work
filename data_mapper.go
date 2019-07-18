@@ -15,9 +15,10 @@
 
 package work
 
-//Inserter represents a creator of entities.
-type Inserter interface {
-
-	// Insert creates the provided entities in a persistent store.
+// DataMapper represents a creator, modifier, and deleter
+// of entities.
+type DataMapper interface {
 	Insert(...interface{}) error
+	Update(...interface{}) error
+	Delete(...interface{}) error
 }

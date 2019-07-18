@@ -16,11 +16,9 @@ type SQLUniterTestSuite struct {
 	sut Uniter
 
 	// mocks.
-	db        *sql.DB
-	_db       sqlmock.Sqlmock
-	inserters map[TypeName]*mocks.Inserter
-	updaters  map[TypeName]*mocks.Updater
-	deleters  map[TypeName]*mocks.Deleter
+	db      *sql.DB
+	_db     sqlmock.Sqlmock
+	mappers map[TypeName]*mocks.SQLDataMapper
 }
 
 func TestSQLUniterTestSuite(t *testing.T) {
@@ -36,43 +34,20 @@ func (s *SQLUniterTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.inserters = make(map[TypeName]*mocks.Inserter)
-	s.inserters[fooTypeName] = &mocks.Inserter{}
-	s.inserters[barTypeName] = &mocks.Inserter{}
-	s.updaters = make(map[TypeName]*mocks.Updater)
-	s.updaters[fooTypeName] = &mocks.Updater{}
-	s.updaters[barTypeName] = &mocks.Updater{}
-	s.deleters = make(map[TypeName]*mocks.Deleter)
-	s.deleters[fooTypeName] = &mocks.Deleter{}
-	s.deleters[barTypeName] = &mocks.Deleter{}
+	s.mappers = make(map[TypeName]*mocks.SQLDataMapper)
+	s.mappers[fooTypeName] = &mocks.SQLDataMapper{}
+	s.mappers[barTypeName] = &mocks.SQLDataMapper{}
 
 	var err error
 	s.db, s._db, err = sqlmock.New()
 	s.Require().NoError(err)
 
 	// construct SUT.
-	i := make(map[TypeName]Inserter)
-	for t, m := range s.inserters {
-		i[t] = m
+	dm := make(map[TypeName]SQLDataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
 	}
-	u := make(map[TypeName]Updater)
-	for t, m := range s.updaters {
-		u[t] = m
-	}
-	d := make(map[TypeName]Deleter)
-	for t, m := range s.deleters {
-		d[t] = m
-	}
-
-	params := SQLUnitParameters{
-		UnitParameters: UnitParameters{
-			Inserters: i,
-			Updaters:  u,
-			Deleters:  d,
-		},
-		ConnectionPool: s.db,
-	}
-	s.sut = NewSQLUniter(params)
+	s.sut = NewSQLUniter(dm, s.db)
 }
 
 func (s *SQLUniterTestSuite) TestSQLUniter_Unit() {
@@ -87,10 +62,7 @@ func (s *SQLUniterTestSuite) TestSQLUniter_Unit() {
 func (s *SQLUniterTestSuite) TestSQLUniter_UnitError() {
 
 	//arrange.
-	params := SQLUnitParameters{
-		ConnectionPool: nil,
-	}
-	s.sut = NewSQLUniter(params)
+	s.sut = NewSQLUniter(map[TypeName]SQLDataMapper{}, nil)
 
 	//action.
 	_, err := s.sut.Unit()

@@ -21,12 +21,10 @@ type SQLUnitTestSuite struct {
 	sut Unit
 
 	// mocks.
-	db        *sql.DB
-	_db       sqlmock.Sqlmock
-	scope     tally.TestScope
-	inserters map[TypeName]*mocks.Inserter
-	updaters  map[TypeName]*mocks.Updater
-	deleters  map[TypeName]*mocks.Deleter
+	db      *sql.DB
+	_db     sqlmock.Sqlmock
+	scope   tally.TestScope
+	mappers map[TypeName]*mocks.SQLDataMapper
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -71,51 +69,37 @@ func (s *SQLUnitTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.inserters = make(map[TypeName]*mocks.Inserter)
-	s.inserters[fooTypeName] = &mocks.Inserter{}
-	s.inserters[barTypeName] = &mocks.Inserter{}
-	s.updaters = make(map[TypeName]*mocks.Updater)
-	s.updaters[fooTypeName] = &mocks.Updater{}
-	s.updaters[barTypeName] = &mocks.Updater{}
-	s.deleters = make(map[TypeName]*mocks.Deleter)
-	s.deleters[fooTypeName] = &mocks.Deleter{}
-	s.deleters[barTypeName] = &mocks.Deleter{}
+	s.mappers = make(map[TypeName]*mocks.SQLDataMapper)
+	s.mappers[fooTypeName] = &mocks.SQLDataMapper{}
+	s.mappers[barTypeName] = &mocks.SQLDataMapper{}
 
 	var err error
 	s.db, s._db, err = sqlmock.New()
 	s.Require().NoError(err)
 
 	// construct SUT.
-	i := make(map[TypeName]Inserter)
-	for t, m := range s.inserters {
-		i[t] = m
-	}
-	u := make(map[TypeName]Updater)
-	for t, m := range s.updaters {
-		u[t] = m
-	}
-	d := make(map[TypeName]Deleter)
-	for t, m := range s.deleters {
-		d[t] = m
+	dm := make(map[TypeName]SQLDataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
 	}
 
 	c := zap.NewDevelopmentConfig()
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
-	params := SQLUnitParameters{
-		UnitParameters: UnitParameters{
-			Inserters: i,
-			Updaters:  u,
-			Deleters:  d,
-			Logger:    l,
-			Scope:     ts,
-		},
-		ConnectionPool: s.db,
-	}
 	s.scope = ts
-	s.sut, err = NewSQLUnit(params)
+	s.sut, err = NewSQLUnit(dm, s.db, UnitLogger(l), UnitScope(ts))
 	s.Require().NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_NewSQLUnit_MissingDataMappers() {
+
+	// action.
+	var err error
+	s.sut, err = NewSQLUnit(map[TypeName]SQLDataMapper{}, s.db)
+
+	// assert.
+	s.Error(err)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_TransactionBeginError() {
@@ -152,7 +136,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_TransactionBeginError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -171,8 +155,9 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(errors.New("whoa"))
 
@@ -192,7 +177,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -211,8 +196,9 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(errors.New("whoa"))
 
@@ -231,7 +217,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InserterAndRollbackError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -251,16 +237,19 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(errors.New("whoa"))
 
@@ -280,7 +269,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -300,16 +289,19 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(errors.New("whoa"))
 
@@ -329,7 +321,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdaterAndRollbackError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterError() {
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -350,24 +342,29 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[1],
 	).Return(nil)
-	s.deleters[fooType].On(
+	s.mappers[fooType].On(
 		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
 		removedEntities[0],
 	).Return(errors.New("whoa"))
 
@@ -387,7 +384,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterAndRollbackError() {
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteAndRollbackError() {
 
 	// arrange.
 	fooType := TypeNameOf(Foo{})
@@ -408,24 +405,29 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleterAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[1],
 	).Return(nil)
-	s.deleters[fooType].On(
+	s.mappers[fooType].On(
 		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
 		removedEntities[0],
 	).Return(errors.New("whoa"))
 
@@ -466,24 +468,29 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[1],
 	).Return(nil)
-	s.deleters[fooType].On(
+	s.mappers[fooType].On(
 		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
 		removedEntities[0],
 	).Return().Run(func(args mock.Arguments) { panic("whoa") })
 
@@ -521,24 +528,29 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[1],
 	).Return(nil)
-	s.deleters[fooType].On(
+	s.mappers[fooType].On(
 		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
 		removedEntities[0],
 	).Return().Run(func(args mock.Arguments) { panic("whoa") })
 
@@ -576,24 +588,29 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[1],
 	).Return(nil)
-	s.deleters[fooType].On(
+	s.mappers[fooType].On(
 		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
 		removedEntities[0],
 	).Return(nil)
 
@@ -633,24 +650,29 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectCommit()
-	s.inserters[fooType].On(
+	s.mappers[fooType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[0],
 	).Return(nil)
-	s.inserters[barType].On(
+	s.mappers[barType].On(
 		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
 		addedEntities[1],
 	).Return(nil)
-	s.updaters[fooType].On(
+	s.mappers[fooType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[0],
 	).Return(nil)
-	s.updaters[barType].On(
+	s.mappers[barType].On(
 		"Update",
+		mock.AnythingOfType("*sql.Tx"),
 		updatedEntities[1],
 	).Return(nil)
-	s.deleters[fooType].On(
+	s.mappers[fooType].On(
 		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
 		removedEntities[0],
 	).Return(nil)
 
@@ -669,15 +691,198 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
+func (s *SQLUnitTestSuite) TestSQLUnit_Add_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Add(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Add_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+	}
+	mappers := map[TypeName]SQLDataMapper{
+		TypeNameOf(Bar{}): &mocks.SQLDataMapper{},
+	}
+	var err error
+	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Add(entities...)
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Add() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Add(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Alter_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Alter(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Alter_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+	}
+	mappers := map[TypeName]SQLDataMapper{
+		TypeNameOf(Bar{}): &mocks.SQLDataMapper{},
+	}
+	var err error
+	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Alter(entities...)
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Alter() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Alter(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Remove_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Remove(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Remove_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Bar{ID: "28"},
+	}
+	mappers := map[TypeName]SQLDataMapper{
+		TypeNameOf(Foo{}): &mocks.SQLDataMapper{},
+	}
+	var err error
+	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Remove(entities...)
+
+	// assert.
+	s.Error(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Remove() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Remove(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Register_Empty() {
+
+	// arrange.
+	entities := []interface{}{}
+
+	// action.
+	err := s.sut.Register(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestUnit_Register_MissingDataMapper() {
+
+	// arrange.
+	entities := []interface{}{
+		Bar{ID: "28"},
+	}
+	mappers := map[TypeName]SQLDataMapper{
+		TypeNameOf(Foo{}): &mocks.SQLDataMapper{},
+	}
+	var err error
+	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.Require().NoError(err)
+
+	// action.
+	err = s.sut.Register(entities...)
+
+	// assert.
+	s.Require().Error(err)
+	s.EqualError(err, ErrMissingDataMapper.Error())
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_Register() {
+
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+
+	// action.
+	err := s.sut.Register(entities...)
+
+	// assert.
+	s.NoError(err)
+}
+
 func (s *SQLUnitTestSuite) AfterTest(suiteName, testName string) {
-	for _, i := range s.inserters {
+	for _, i := range s.mappers {
 		i.AssertExpectations(s.T())
-	}
-	for _, u := range s.updaters {
-		u.AssertExpectations(s.T())
-	}
-	for _, d := range s.deleters {
-		d.AssertExpectations(s.T())
 	}
 }
 
