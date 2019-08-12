@@ -3,7 +3,7 @@
 # work
 > A compact library for tracking and committing atomic changes to your entities.
 
-[![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][coverage-img]][coverage] [![Release][release-img]][release] [![License][license-img]][license]
+[![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][coverage-img]][coverage] [![Release][release-img]][release] [![License][license-img]][license] [![Blog][blog-img]][blog]
 
 ## What is it?
 
@@ -182,3 +182,5 @@ Discovered via the interwebs, the artwork was created by Marcus Olsson and Jon C
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [release]: https://github.com/freerware/work/releases
 [release-img]: https://img.shields.io/github/tag/freerware/work.svg?label=version
+[blog]: https://medium.com/@freerjm/work-units-ec2da48cf574
+[blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
