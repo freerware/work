@@ -581,6 +581,49 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
+func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_NoOptions() {
+
+	// arrange.
+	dm := make(map[TypeName]DataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
+	}
+	var err error
+	s.sut, err = NewBestEffortUnit(dm)
+	s.Require().NoError(err)
+
+	fooType := TypeNameOf(Foo{})
+	barType := TypeNameOf(Bar{})
+	addedEntities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+	updatedEntities := []interface{}{
+		Foo{ID: 1992},
+		Bar{ID: "1992"},
+	}
+	removedEntities := []interface{}{
+		Foo{ID: 2},
+	}
+	addError := s.sut.Add(addedEntities...)
+	alterError := s.sut.Alter(updatedEntities...)
+	removeError := s.sut.Remove(removedEntities...)
+	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
+	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
+	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].On("Delete", removedEntities[0]).Return(nil)
+
+	// action.
+	err = s.sut.Save()
+
+	// assert.
+	s.Require().NoError(addError)
+	s.Require().NoError(alterError)
+	s.Require().NoError(removeError)
+	s.NoError(err)
+}
+
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Add_Empty() {
 
 	// arrange.

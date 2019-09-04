@@ -691,6 +691,72 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
+func (s *SQLUnitTestSuite) TestSQLUnit_Save_NoOptions() {
+
+	// arrange.
+	dm := make(map[TypeName]SQLDataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
+	}
+	var err error
+	s.sut, err = NewSQLUnit(dm, s.db)
+	s.Require().NoError(err)
+
+	fooType := TypeNameOf(Foo{})
+	barType := TypeNameOf(Bar{})
+	addedEntities := []interface{}{
+		Foo{ID: 28},
+		Bar{ID: "28"},
+	}
+	updatedEntities := []interface{}{
+		Foo{ID: 1992},
+		Bar{ID: "1992"},
+	}
+	removedEntities := []interface{}{
+		Foo{ID: 2},
+	}
+	addError := s.sut.Add(addedEntities...)
+	alterError := s.sut.Alter(updatedEntities...)
+	removeError := s.sut.Remove(removedEntities...)
+	s._db.ExpectBegin()
+	s._db.ExpectCommit()
+	s.mappers[fooType].On(
+		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
+		addedEntities[0],
+	).Return(nil)
+	s.mappers[barType].On(
+		"Insert",
+		mock.AnythingOfType("*sql.Tx"),
+		addedEntities[1],
+	).Return(nil)
+	s.mappers[fooType].On(
+		"Update",
+		mock.AnythingOfType("*sql.Tx"),
+		updatedEntities[0],
+	).Return(nil)
+	s.mappers[barType].On(
+		"Update",
+		mock.AnythingOfType("*sql.Tx"),
+		updatedEntities[1],
+	).Return(nil)
+	s.mappers[fooType].On(
+		"Delete",
+		mock.AnythingOfType("*sql.Tx"),
+		removedEntities[0],
+	).Return(nil)
+
+	// action.
+	err = s.sut.Save()
+
+	// assert.
+	s.Require().NoError(addError)
+	s.Require().NoError(alterError)
+	s.Require().NoError(removeError)
+	s.Require().NoError(s._db.ExpectationsWereMet())
+	s.NoError(err)
+}
+
 func (s *SQLUnitTestSuite) TestSQLUnit_Add_Empty() {
 
 	// arrange.

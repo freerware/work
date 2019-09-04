@@ -120,7 +120,7 @@ func (u *unit) incrementCounter(name string, amount int64) {
 }
 
 func (u *unit) startTimer(name string) func() {
-	var stopFunc func()
+	stopFunc := func() {}
 	if u.hasScope() {
 		stopFunc = u.scope.Timer(name).Start().Stop
 	}
