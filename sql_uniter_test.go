@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/freerware/work/internal/mocks"
+	"github.com/freerware/work/internal/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,7 +18,7 @@ type SQLUniterTestSuite struct {
 	// mocks.
 	db      *sql.DB
 	_db     sqlmock.Sqlmock
-	mappers map[TypeName]*mocks.SQLDataMapper
+	mappers map[TypeName]*mock.SQLDataMapper
 }
 
 func TestSQLUniterTestSuite(t *testing.T) {
@@ -34,9 +34,9 @@ func (s *SQLUniterTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.mappers = make(map[TypeName]*mocks.SQLDataMapper)
-	s.mappers[fooTypeName] = &mocks.SQLDataMapper{}
-	s.mappers[barTypeName] = &mocks.SQLDataMapper{}
+	s.mappers = make(map[TypeName]*mock.SQLDataMapper)
+	s.mappers[fooTypeName] = &mock.SQLDataMapper{}
+	s.mappers[barTypeName] = &mock.SQLDataMapper{}
 
 	var err error
 	s.db, s._db, err = sqlmock.New()

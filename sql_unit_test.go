@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/freerware/work/internal/mocks"
-	"github.com/stretchr/testify/mock"
+	"github.com/freerware/work/internal/mock"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -24,7 +24,8 @@ type SQLUnitTestSuite struct {
 	db      *sql.DB
 	_db     sqlmock.Sqlmock
 	scope   tally.TestScope
-	mappers map[TypeName]*mocks.SQLDataMapper
+	mc      *gomock.Controller
+	mappers map[TypeName]*mock.SQLDataMapper
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -69,9 +70,10 @@ func (s *SQLUnitTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.mappers = make(map[TypeName]*mocks.SQLDataMapper)
-	s.mappers[fooTypeName] = &mocks.SQLDataMapper{}
-	s.mappers[barTypeName] = &mocks.SQLDataMapper{}
+	s.mc = gomock.NewController(s.T())
+	s.mappers = make(map[TypeName]*mock.SQLDataMapper)
+	s.mappers[fooTypeName] = mock.NewSQLDataMapper(s.mc)
+	s.mappers[barTypeName] = mock.NewSQLDataMapper(s.mc)
 
 	var err error
 	s.db, s._db, err = sqlmock.New()
@@ -155,11 +157,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(errors.New("whoa"))
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(errors.New("whoa"))
 
 	// action.
 	err := s.sut.Save()
@@ -196,11 +194,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(errors.New("whoa"))
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(errors.New("whoa"))
 
 	// action.
 	err := s.sut.Save()
@@ -238,21 +232,9 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(errors.New("whoa"))
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(errors.New("whoa"))
 
 	// action.
 	err := s.sut.Save()
@@ -290,21 +272,9 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(errors.New("whoa"))
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(errors.New("whoa"))
 
 	// action.
 	err := s.sut.Save()
@@ -343,31 +313,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return(errors.New("whoa"))
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(errors.New("whoa"))
 
 	// action.
 	err := s.sut.Save()
@@ -406,31 +356,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return(errors.New("whoa"))
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(errors.New("whoa"))
 
 	// action.
 	err := s.sut.Save()
@@ -469,31 +399,12 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback()
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return().Run(func(args mock.Arguments) { panic("whoa") })
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).
+		Do(func() { panic("whoa") })
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
@@ -529,31 +440,12 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return().Run(func(args mock.Arguments) { panic("whoa") })
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).
+		Do(func() { panic("whoa") })
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
@@ -589,31 +481,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(nil)
 
 	// action.
 	err := s.sut.Save()
@@ -651,31 +523,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectCommit()
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(nil)
 
 	// action.
 	err := s.sut.Save()
@@ -721,31 +573,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_NoOptions() {
 	removeError := s.sut.Remove(removedEntities...)
 	s._db.ExpectBegin()
 	s._db.ExpectCommit()
-	s.mappers[fooType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Insert",
-		mock.AnythingOfType("*sql.Tx"),
-		addedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[0],
-	).Return(nil)
-	s.mappers[barType].On(
-		"Update",
-		mock.AnythingOfType("*sql.Tx"),
-		updatedEntities[1],
-	).Return(nil)
-	s.mappers[fooType].On(
-		"Delete",
-		mock.AnythingOfType("*sql.Tx"),
-		removedEntities[0],
-	).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -777,7 +609,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Add_MissingDataMapper() {
 		Foo{ID: 28},
 	}
 	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Bar{}): &mocks.SQLDataMapper{},
+		TypeNameOf(Bar{}): &mock.SQLDataMapper{},
 	}
 	var err error
 	s.sut, err = NewSQLUnit(mappers, s.db)
@@ -824,7 +656,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Alter_MissingDataMapper() {
 		Foo{ID: 28},
 	}
 	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Bar{}): &mocks.SQLDataMapper{},
+		TypeNameOf(Bar{}): &mock.SQLDataMapper{},
 	}
 	var err error
 	s.sut, err = NewSQLUnit(mappers, s.db)
@@ -871,7 +703,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Remove_MissingDataMapper() {
 		Bar{ID: "28"},
 	}
 	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Foo{}): &mocks.SQLDataMapper{},
+		TypeNameOf(Foo{}): &mock.SQLDataMapper{},
 	}
 	var err error
 	s.sut, err = NewSQLUnit(mappers, s.db)
@@ -918,7 +750,7 @@ func (s *SQLUnitTestSuite) TestUnit_Register_MissingDataMapper() {
 		Bar{ID: "28"},
 	}
 	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Foo{}): &mocks.SQLDataMapper{},
+		TypeNameOf(Foo{}): &mock.SQLDataMapper{},
 	}
 	var err error
 	s.sut, err = NewSQLUnit(mappers, s.db)
@@ -947,14 +779,9 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Register() {
 	s.NoError(err)
 }
 
-func (s *SQLUnitTestSuite) AfterTest(suiteName, testName string) {
-	for _, i := range s.mappers {
-		i.AssertExpectations(s.T())
-	}
-}
-
 func (s *SQLUnitTestSuite) TearDownTest() {
 	s.db.Close()
+	s.mc.Finish()
 	s.sut = nil
 	s.scope = nil
 }

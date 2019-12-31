@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/freerware/work/internal/mocks"
-	"github.com/stretchr/testify/mock"
+	"github.com/freerware/work/internal/mock"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -19,8 +19,9 @@ type BestEffortUnitTestSuite struct {
 	sut Unit
 
 	// mocks.
-	mappers map[TypeName]*mocks.DataMapper
+	mappers map[TypeName]*mock.DataMapper
 	scope   tally.TestScope
+	mc      *gomock.Controller
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -65,9 +66,10 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.mappers = make(map[TypeName]*mocks.DataMapper)
-	s.mappers[fooTypeName] = &mocks.DataMapper{}
-	s.mappers[barTypeName] = &mocks.DataMapper{}
+	s.mc = gomock.NewController(s.T())
+	s.mappers = make(map[TypeName]*mock.DataMapper)
+	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
 
 	// construct SUT.
 	dm := make(map[TypeName]DataMapper)
@@ -120,13 +122,13 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(err)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].On(
-		"Update", registeredEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
+	s.mappers[barType].EXPECT().
+		Update(registeredEntities[1]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -167,11 +169,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertAndRollbackError
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
 
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(err)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[1]).Return(err)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[1]).Return(err)
 
 	// action.
 	err = s.sut.Save()
@@ -213,17 +215,17 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(err).Once()
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(err).Times(1)
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On("Delete", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Delete", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].On(
-		"Update", registeredEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Delete(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
+	s.mappers[barType].EXPECT().
+		Update(registeredEntities[1]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -264,15 +266,15 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateAndRollbackError
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(err)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On("Delete", addedEntities[0]).Return(err)
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].On(
-		"Update", registeredEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(err)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
+	s.mappers[barType].EXPECT().
+		Update(registeredEntities[1]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -310,19 +312,19 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteError() {
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Delete", removedEntities[0]).Return(err)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On("Delete", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Delete", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].On(
-		"Update", registeredEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Delete(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
+	s.mappers[barType].EXPECT().
+		Update(registeredEntities[1]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -364,17 +366,17 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteAndRollbackError
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Delete", removedEntities[0]).Return(err)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(err)
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On("Delete", addedEntities[0]).Return(err)
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].On(
-		"Update", registeredEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(err)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
+	s.mappers[barType].EXPECT().
+		Update(registeredEntities[1]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -416,21 +418,20 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
 	s.mappers[fooType].
-		On("Delete", removedEntities[0]).
-		Return().Run(func(args mock.Arguments) { panic("whoa") })
+		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On("Delete", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Delete", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].On(
-		"Update", registeredEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Delete(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
+	s.mappers[barType].EXPECT().
+		Update(registeredEntities[1]).Return(nil)
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
@@ -469,17 +470,16 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
 	err := errors.New("whoa")
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
 	s.mappers[fooType].
-		On("Delete", removedEntities[0]).
-		Return().Run(func(args mock.Arguments) { panic("whoa") })
+		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
 
 	// arrange - rollback invocations.
-	s.mappers[fooType].On(
-		"Update", registeredEntities[0], registeredEntities[1]).Return(err)
+	s.mappers[fooType].EXPECT().
+		Update(registeredEntities[0], registeredEntities[1]).Return(err)
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
@@ -517,18 +517,17 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic(
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
 	s.mappers[fooType].
-		On("Delete", removedEntities[0]).
-		Return().Run(func(args mock.Arguments) { panic("whoa") })
+		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
 
 	// arrange - rollback invocations.
 	s.mappers[fooType].
-		On("Update", registeredEntities[0], registeredEntities[1]).
-		Return().Run(func(args mock.Arguments) { panic("whoa") })
+		EXPECT().Update(registeredEntities[0], registeredEntities[1]).
+		Do(func() { panic("whoa") })
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
@@ -561,11 +560,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Delete", removedEntities[0]).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(nil)
 
 	// action.
 	err := s.sut.Save()
@@ -608,11 +607,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_NoOptions() {
 	addError := s.sut.Add(addedEntities...)
 	alterError := s.sut.Alter(updatedEntities...)
 	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].On("Insert", addedEntities[0]).Return(nil)
-	s.mappers[barType].On("Insert", addedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Update", updatedEntities[0]).Return(nil)
-	s.mappers[barType].On("Update", updatedEntities[1]).Return(nil)
-	s.mappers[fooType].On("Delete", removedEntities[0]).Return(nil)
+	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
+	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
+	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(nil)
 
 	// action.
 	err = s.sut.Save()
@@ -643,7 +642,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Add_MissingDataMapper() {
 		Foo{ID: 28},
 	}
 	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Bar{}): &mocks.DataMapper{},
+		TypeNameOf(Bar{}): &mock.DataMapper{},
 	}
 	var err error
 	s.sut, err = NewBestEffortUnit(mappers)
@@ -690,7 +689,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Alter_MissingDataMapper() {
 		Foo{ID: 28},
 	}
 	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Bar{}): &mocks.DataMapper{},
+		TypeNameOf(Bar{}): &mock.DataMapper{},
 	}
 	var err error
 	s.sut, err = NewBestEffortUnit(mappers)
@@ -737,7 +736,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Remove_MissingDataMapper() 
 		Bar{ID: "28"},
 	}
 	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Foo{}): &mocks.DataMapper{},
+		TypeNameOf(Foo{}): &mock.DataMapper{},
 	}
 	var err error
 	s.sut, err = NewBestEffortUnit(mappers)
@@ -784,7 +783,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register_MissingDataMapper(
 		Bar{ID: "28"},
 	}
 	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Foo{}): &mocks.DataMapper{},
+		TypeNameOf(Foo{}): &mock.DataMapper{},
 	}
 	var err error
 	s.sut, err = NewBestEffortUnit(mappers)
@@ -813,12 +812,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register() {
 	s.NoError(err)
 }
 
-func (s *BestEffortUnitTestSuite) AfterTest(suiteName, testName string) {
-	for _, i := range s.mappers {
-		i.AssertExpectations(s.T())
-	}
-}
-
 func (s *BestEffortUnitTestSuite) TearDownTest() {
 	s.sut = nil
+	s.mc.Finish()
 }
