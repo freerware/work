@@ -158,6 +158,14 @@ if err != nil {
 }
 ```
 
+## Dependancy Information
+
+As of [`v3.0.0`][modules-release], the project utilizes [modules][modules-doc].
+Prior to `v3.0.0`, the project utilized [`dep`][dep] for dependency management.
+
+In order to transition to modules gracefully, we adhered to the
+[best practice recommendations][modules-wiki] authored by the Golang team.
+
 ## Contribute
 
 Want to lend us a hand? Check out our guidelines for
@@ -189,6 +197,10 @@ Jon Calhoun for [Gophercises][gophercises].
 [uniter-doc]: https://godoc.org/github.com/freerware/work#Uniter
 [unit-logger-doc]: https://godoc.org/github.com/freerware/work#pkg-variables
 [unit-scope-doc]: https://godoc.org/github.com/freerware/work#pkg-variables
+[modules-doc]: https://golang.org/doc/go1.11#modules
+[modules-wiki]: https://github.com/golang/go/wiki/Modules#releasing-modules-v2-or-higher
+[modules-release]: https://github.com/freerware/work/releases/tag/v3.0.0
+[dep]: https://golang.github.io/dep/
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
