@@ -3,7 +3,7 @@ package work
 import (
 	"testing"
 
-	"github.com/freerware/work/mocks"
+	"github.com/freerware/work/internal/mocks"
 	"github.com/stretchr/testify/suite"
 )
 
