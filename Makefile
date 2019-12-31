@@ -1,16 +1,19 @@
 all: bins
 
 clean:
-	go clean -x
-	rm -r --force vendor/
+	@GO111MODULE=on go clean -x
 
 bins:
-	dep ensure -v
-	go build
+	@GO111MODULE=on go build
 
 test: bins
-	go test -v -covermode=count -coverprofile=coverage.out
+	@#v1 + v2
+	@GO111MODULE=on go test -v -covermode=count -coverprofile=coverage.out ./ ./v2
 
 mocks:
-	mockgen -source=data_mapper.go -destination=internal/mock/data_mapper.go -package=mock -mock_names=DataMapper=DataMapper
-	mockgen -source=sql_data_mapper.go -destination=internal/mock/sql_data_mapper.go -package=mock -mock_names=SQLDataMapper=SQLDataMapper
+	#v1
+	@mockgen -source=data_mapper.go -destination=internal/mock/data_mapper.go -package=mock -mock_names=DataMapper=DataMapper
+	@mockgen -source=sql_data_mapper.go -destination=internal/mock/sql_data_mapper.go -package=mock -mock_names=SQLDataMapper=SQLDataMapper
+	#v2
+	@mockgen -source=v2/data_mapper.go -destination=v2/internal/mock/data_mapper.go -package=mock -mock_names=DataMapper=DataMapper
+	@mockgen -source=v2/sql_data_mapper.go -destination=v2/internal/mock/sql_data_mapper.go -package=mock -mock_names=SQLDataMapper=SQLDataMapper
