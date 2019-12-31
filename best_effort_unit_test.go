@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/freerware/work/mocks"
+	"github.com/freerware/work/internal/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"

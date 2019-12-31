@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/freerware/work/mocks"
+	"github.com/freerware/work/internal/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -217,6 +217,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertAndRollbackError() {
 	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
+
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateError() {
 
 	// arrange.
