@@ -3,7 +3,7 @@ package work
 import (
 	"testing"
 
-	"github.com/freerware/work/internal/mocks"
+	"github.com/freerware/work/internal/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -14,7 +14,7 @@ type BestEffortUniterTestSuite struct {
 	sut Uniter
 
 	// mocks.
-	mappers map[TypeName]*mocks.DataMapper
+	mappers map[TypeName]*mock.DataMapper
 }
 
 func TestBestEffortUniterTestSuite(t *testing.T) {
@@ -30,9 +30,9 @@ func (s *BestEffortUniterTestSuite) SetupTest() {
 	barTypeName := TypeNameOf(bar)
 
 	// initialize mocks.
-	s.mappers = make(map[TypeName]*mocks.DataMapper)
-	s.mappers[fooTypeName] = &mocks.DataMapper{}
-	s.mappers[barTypeName] = &mocks.DataMapper{}
+	s.mappers = make(map[TypeName]*mock.DataMapper)
+	s.mappers[fooTypeName] = &mock.DataMapper{}
+	s.mappers[barTypeName] = &mock.DataMapper{}
 
 	// construct SUT.
 	dm := make(map[TypeName]DataMapper)
