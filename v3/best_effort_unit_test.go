@@ -1,10 +1,11 @@
-package work
+package work_test
 
 import (
 	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/freerware/work/v3"
 	"github.com/freerware/work/v3/internal/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
@@ -16,10 +17,10 @@ type BestEffortUnitTestSuite struct {
 	suite.Suite
 
 	// system under test.
-	sut Unit
+	sut work.Unit
 
 	// mocks.
-	mappers map[TypeName]*mock.DataMapper
+	mappers map[work.TypeName]*mock.DataMapper
 	scope   tally.TestScope
 	mc      *gomock.Controller
 
@@ -61,18 +62,18 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 
 	// test entities.
 	foo := Foo{ID: 28}
-	fooTypeName := TypeNameOf(foo)
+	fooTypeName := work.TypeNameOf(foo)
 	bar := Bar{ID: "28"}
-	barTypeName := TypeNameOf(bar)
+	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
-	s.mappers = make(map[TypeName]*mock.DataMapper)
+	s.mappers = make(map[work.TypeName]*mock.DataMapper)
 	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
 	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
 
 	// construct SUT.
-	dm := make(map[TypeName]DataMapper)
+	dm := make(map[work.TypeName]work.DataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
@@ -83,7 +84,7 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	s.scope = ts
 	var err error
-	s.sut, err = NewBestEffortUnit(dm, UnitLogger(l), UnitScope(ts))
+	s.sut, err = work.NewBestEffortUnit(dm, work.UnitLogger(l), work.UnitScope(ts))
 	s.Require().NoError(err)
 }
 
@@ -91,7 +92,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_NewBestEffortUnit_MissingDa
 
 	// action.
 	var err error
-	s.sut, err = NewBestEffortUnit(map[TypeName]DataMapper{})
+	s.sut, err = work.NewBestEffortUnit(map[work.TypeName]work.DataMapper{})
 
 	// assert.
 	s.Error(err)
@@ -100,8 +101,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_NewBestEffortUnit_MissingDa
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 	}
@@ -148,7 +149,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertError() {
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
+	fooType := work.TypeNameOf(Foo{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 	}
@@ -193,8 +194,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertAndRollbackError
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -245,8 +246,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateError() {
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 	}
@@ -289,8 +290,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateAndRollbackError
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -344,8 +345,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteError() {
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 	}
@@ -396,8 +397,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteAndRollbackError
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -448,8 +449,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -496,8 +497,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -544,8 +545,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic(
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -583,16 +584,16 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_NoOptions() {
 
 	// arrange.
-	dm := make(map[TypeName]DataMapper)
+	dm := make(map[work.TypeName]work.DataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
 	var err error
-	s.sut, err = NewBestEffortUnit(dm)
+	s.sut, err = work.NewBestEffortUnit(dm)
 	s.Require().NoError(err)
 
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -641,11 +642,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Add_MissingDataMapper() {
 	entities := []interface{}{
 		Foo{ID: 28},
 	}
-	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Bar{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.DataMapper{
+		work.TypeNameOf(Bar{}): &mock.DataMapper{},
 	}
 	var err error
-	s.sut, err = NewBestEffortUnit(mappers)
+	s.sut, err = work.NewBestEffortUnit(mappers)
 	s.Require().NoError(err)
 
 	// action.
@@ -688,11 +689,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Alter_MissingDataMapper() {
 	entities := []interface{}{
 		Foo{ID: 28},
 	}
-	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Bar{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.DataMapper{
+		work.TypeNameOf(Bar{}): &mock.DataMapper{},
 	}
 	var err error
-	s.sut, err = NewBestEffortUnit(mappers)
+	s.sut, err = work.NewBestEffortUnit(mappers)
 	s.Require().NoError(err)
 
 	// action.
@@ -735,11 +736,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Remove_MissingDataMapper() 
 	entities := []interface{}{
 		Bar{ID: "28"},
 	}
-	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Foo{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.DataMapper{
+		work.TypeNameOf(Foo{}): &mock.DataMapper{},
 	}
 	var err error
-	s.sut, err = NewBestEffortUnit(mappers)
+	s.sut, err = work.NewBestEffortUnit(mappers)
 	s.Require().NoError(err)
 
 	// action.
@@ -782,11 +783,11 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register_MissingDataMapper(
 	entities := []interface{}{
 		Bar{ID: "28"},
 	}
-	mappers := map[TypeName]DataMapper{
-		TypeNameOf(Foo{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.DataMapper{
+		work.TypeNameOf(Foo{}): &mock.DataMapper{},
 	}
 	var err error
-	s.sut, err = NewBestEffortUnit(mappers)
+	s.sut, err = work.NewBestEffortUnit(mappers)
 	s.Require().NoError(err)
 
 	// action.
@@ -794,7 +795,7 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register_MissingDataMapper(
 
 	// assert.
 	s.Require().Error(err)
-	s.EqualError(err, ErrMissingDataMapper.Error())
+	s.EqualError(err, work.ErrMissingDataMapper.Error())
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Register() {

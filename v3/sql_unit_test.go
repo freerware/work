@@ -1,4 +1,4 @@
-package work
+package work_test
 
 import (
 	"database/sql"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/freerware/work/v3"
 	"github.com/freerware/work/v3/internal/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
@@ -18,14 +19,14 @@ type SQLUnitTestSuite struct {
 	suite.Suite
 
 	// system under test.
-	sut Unit
+	sut work.Unit
 
 	// mocks.
 	db      *sql.DB
 	_db     sqlmock.Sqlmock
 	scope   tally.TestScope
 	mc      *gomock.Controller
-	mappers map[TypeName]*mock.SQLDataMapper
+	mappers map[work.TypeName]*mock.SQLDataMapper
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -65,13 +66,13 @@ func (s *SQLUnitTestSuite) SetupTest() {
 
 	// test entities.
 	foo := Foo{ID: 28}
-	fooTypeName := TypeNameOf(foo)
+	fooTypeName := work.TypeNameOf(foo)
 	bar := Bar{ID: "28"}
-	barTypeName := TypeNameOf(bar)
+	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
-	s.mappers = make(map[TypeName]*mock.SQLDataMapper)
+	s.mappers = make(map[work.TypeName]*mock.SQLDataMapper)
 	s.mappers[fooTypeName] = mock.NewSQLDataMapper(s.mc)
 	s.mappers[barTypeName] = mock.NewSQLDataMapper(s.mc)
 
@@ -80,7 +81,7 @@ func (s *SQLUnitTestSuite) SetupTest() {
 	s.Require().NoError(err)
 
 	// construct SUT.
-	dm := make(map[TypeName]SQLDataMapper)
+	dm := make(map[work.TypeName]work.SQLDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
@@ -90,7 +91,7 @@ func (s *SQLUnitTestSuite) SetupTest() {
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	s.scope = ts
-	s.sut, err = NewSQLUnit(dm, s.db, UnitLogger(l), UnitScope(ts))
+	s.sut, err = work.NewSQLUnit(dm, s.db, work.UnitLogger(l), work.UnitScope(ts))
 	s.Require().NoError(err)
 }
 
@@ -98,7 +99,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_NewSQLUnit_MissingDataMappers() {
 
 	// action.
 	var err error
-	s.sut, err = NewSQLUnit(map[TypeName]SQLDataMapper{}, s.db)
+	s.sut, err = work.NewSQLUnit(map[work.TypeName]work.SQLDataMapper{}, s.db)
 
 	// assert.
 	s.Error(err)
@@ -141,7 +142,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_TransactionBeginError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
+	fooType := work.TypeNameOf(Foo{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 	}
@@ -178,7 +179,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
+	fooType := work.TypeNameOf(Foo{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 	}
@@ -215,8 +216,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertAndRollbackError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -255,8 +256,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -295,8 +296,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateAndRollbackError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -338,8 +339,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -381,8 +382,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteAndRollbackError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -422,8 +423,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -463,8 +464,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -505,8 +506,8 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 
 	// arrange.
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -547,16 +548,16 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 func (s *SQLUnitTestSuite) TestSQLUnit_Save_NoOptions() {
 
 	// arrange.
-	dm := make(map[TypeName]SQLDataMapper)
+	dm := make(map[work.TypeName]work.SQLDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
 	var err error
-	s.sut, err = NewSQLUnit(dm, s.db)
+	s.sut, err = work.NewSQLUnit(dm, s.db)
 	s.Require().NoError(err)
 
-	fooType := TypeNameOf(Foo{})
-	barType := TypeNameOf(Bar{})
+	fooType := work.TypeNameOf(Foo{})
+	barType := work.TypeNameOf(Bar{})
 	addedEntities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
@@ -608,11 +609,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Add_MissingDataMapper() {
 	entities := []interface{}{
 		Foo{ID: 28},
 	}
-	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Bar{}): &mock.SQLDataMapper{},
+	mappers := map[work.TypeName]work.SQLDataMapper{
+		work.TypeNameOf(Bar{}): &mock.SQLDataMapper{},
 	}
 	var err error
-	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.sut, err = work.NewSQLUnit(mappers, s.db)
 	s.Require().NoError(err)
 
 	// action.
@@ -655,11 +656,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Alter_MissingDataMapper() {
 	entities := []interface{}{
 		Foo{ID: 28},
 	}
-	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Bar{}): &mock.SQLDataMapper{},
+	mappers := map[work.TypeName]work.SQLDataMapper{
+		work.TypeNameOf(Bar{}): &mock.SQLDataMapper{},
 	}
 	var err error
-	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.sut, err = work.NewSQLUnit(mappers, s.db)
 	s.Require().NoError(err)
 
 	// action.
@@ -702,11 +703,11 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Remove_MissingDataMapper() {
 	entities := []interface{}{
 		Bar{ID: "28"},
 	}
-	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Foo{}): &mock.SQLDataMapper{},
+	mappers := map[work.TypeName]work.SQLDataMapper{
+		work.TypeNameOf(Foo{}): &mock.SQLDataMapper{},
 	}
 	var err error
-	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.sut, err = work.NewSQLUnit(mappers, s.db)
 	s.Require().NoError(err)
 
 	// action.
@@ -749,11 +750,11 @@ func (s *SQLUnitTestSuite) TestUnit_Register_MissingDataMapper() {
 	entities := []interface{}{
 		Bar{ID: "28"},
 	}
-	mappers := map[TypeName]SQLDataMapper{
-		TypeNameOf(Foo{}): &mock.SQLDataMapper{},
+	mappers := map[work.TypeName]work.SQLDataMapper{
+		work.TypeNameOf(Foo{}): &mock.SQLDataMapper{},
 	}
 	var err error
-	s.sut, err = NewSQLUnit(mappers, s.db)
+	s.sut, err = work.NewSQLUnit(mappers, s.db)
 	s.Require().NoError(err)
 
 	// action.
@@ -761,7 +762,7 @@ func (s *SQLUnitTestSuite) TestUnit_Register_MissingDataMapper() {
 
 	// assert.
 	s.Require().Error(err)
-	s.EqualError(err, ErrMissingDataMapper.Error())
+	s.EqualError(err, work.ErrMissingDataMapper.Error())
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Register() {
