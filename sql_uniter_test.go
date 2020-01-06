@@ -1,10 +1,11 @@
-package work
+package work_test
 
 import (
 	"database/sql"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/freerware/work"
 	"github.com/freerware/work/internal/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -13,12 +14,12 @@ type SQLUniterTestSuite struct {
 	suite.Suite
 
 	// system under test.
-	sut Uniter
+	sut work.Uniter
 
 	// mocks.
 	db      *sql.DB
 	_db     sqlmock.Sqlmock
-	mappers map[TypeName]*mock.SQLDataMapper
+	mappers map[work.TypeName]*mock.SQLDataMapper
 }
 
 func TestSQLUniterTestSuite(t *testing.T) {
@@ -29,12 +30,12 @@ func (s *SQLUniterTestSuite) SetupTest() {
 
 	// test entities.
 	foo := Foo{ID: 28}
-	fooTypeName := TypeNameOf(foo)
+	fooTypeName := work.TypeNameOf(foo)
 	bar := Bar{ID: "28"}
-	barTypeName := TypeNameOf(bar)
+	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
-	s.mappers = make(map[TypeName]*mock.SQLDataMapper)
+	s.mappers = make(map[work.TypeName]*mock.SQLDataMapper)
 	s.mappers[fooTypeName] = &mock.SQLDataMapper{}
 	s.mappers[barTypeName] = &mock.SQLDataMapper{}
 
@@ -43,11 +44,11 @@ func (s *SQLUniterTestSuite) SetupTest() {
 	s.Require().NoError(err)
 
 	// construct SUT.
-	dm := make(map[TypeName]SQLDataMapper)
+	dm := make(map[work.TypeName]work.SQLDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
-	s.sut = NewSQLUniter(dm, s.db)
+	s.sut = work.NewSQLUniter(dm, s.db)
 }
 
 func (s *SQLUniterTestSuite) TestSQLUniter_Unit() {
@@ -62,7 +63,7 @@ func (s *SQLUniterTestSuite) TestSQLUniter_Unit() {
 func (s *SQLUniterTestSuite) TestSQLUniter_UnitError() {
 
 	//arrange.
-	s.sut = NewSQLUniter(map[TypeName]SQLDataMapper{}, nil)
+	s.sut = work.NewSQLUniter(map[work.TypeName]work.SQLDataMapper{}, nil)
 
 	//action.
 	_, err := s.sut.Unit()
