@@ -1,4 +1,4 @@
-<p align="center"><img src="https://dwglogo.com/wp-content/uploads/2017/08/muscles-clipart-ghoper.gif" width="360"></p>
+<p align="center"><img src="https://user-images.githubusercontent.com/5921929/73911149-1dad9280-4866-11ea-8818-fed1cd49e8b1.png" width="360"></p>
 
 # work
 > A compact library for tracking and committing atomic changes to your entities.
@@ -180,11 +180,6 @@ We are rocking an [Apache 2.0 license][apache-license] for this project.
 Please check out our [code of conduct][code-of-conduct] to get up to speed
 how we do things.
 
-## Artwork
-
-Discovered via the interwebs, the artwork was created by Marcus Olsson and
-Jon Calhoun for [Gophercises][gophercises].
-
 [uow]: https://martinfowler.com/eaaCatalog/unitOfWork.html
 [sql-data-mapper-doc]: https://godoc.org/github.com/freerware/work#SQLDataMapper
 [data-mapper-doc]: https://godoc.org/github.com/freerware/work#DataMapper
@@ -204,7 +199,6 @@ Jon Calhoun for [Gophercises][gophercises].
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
-[gophercises]: https://gophercises.com
 [doc-img]: https://godoc.org/github.com/freerware/work?status.svg
 [doc]: https://godoc.org/github.com/freerware/work
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
