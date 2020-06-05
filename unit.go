@@ -76,37 +76,15 @@ type unit struct {
 }
 
 func newUnit(options UnitOptions) unit {
-	var scope tally.Scope
-	if options.Scope != nil {
-		scope = options.Scope.SubScope("unit")
-	}
 	u := unit{
 		additions:   make(map[TypeName][]interface{}),
 		alterations: make(map[TypeName][]interface{}),
 		removals:    make(map[TypeName][]interface{}),
 		registered:  make(map[TypeName][]interface{}),
 		logger:      options.Logger,
-		scope:       scope,
+		scope:       options.Scope.SubScope("unit"),
 	}
 	return u
-}
-
-func (u *unit) hasScope() bool {
-	return u.scope != nil
-}
-
-func (u *unit) incrementCounter(name string, amount int64) {
-	if u.hasScope() {
-		u.scope.Counter(name).Inc(amount)
-	}
-}
-
-func (u *unit) startTimer(name string) func() {
-	stopFunc := func() {}
-	if u.hasScope() {
-		stopFunc = u.scope.Timer(name).Start().Stop
-	}
-	return stopFunc
 }
 
 func (u *unit) register(checker func(t TypeName) bool, entities ...interface{}) error {

@@ -117,7 +117,7 @@ func (u *bestEffortUnit) rollbackDeletes() (err error) {
 func (u *bestEffortUnit) rollback() (err error) {
 
 	//setup timer.
-	stop := u.startTimer(rollback)
+	stop := u.scope.Timer(rollback).Start().Stop
 
 	//log and capture metrics if there is a panic.
 	defer func() {
@@ -125,14 +125,14 @@ func (u *bestEffortUnit) rollback() (err error) {
 		if r := recover(); r != nil {
 			msg := "panic: unable to rollback work unit"
 			u.logger.Error(msg, zap.String("panic", fmt.Sprintf("%v", r)))
-			u.incrementCounter(rollbackFailure, 1)
+			u.scope.Counter(rollbackFailure).Inc(1)
 			panic(r)
 		}
 
 		if err != nil {
-			u.incrementCounter(rollbackFailure, 1)
+			u.scope.Counter(rollbackFailure).Inc(1)
 		} else {
-			u.incrementCounter(rollbackSuccess, 1)
+			u.scope.Counter(rollbackSuccess).Inc(1)
 		}
 	}()
 
@@ -245,7 +245,7 @@ func (u *bestEffortUnit) Remove(entities ...interface{}) error {
 func (u *bestEffortUnit) Save() (err error) {
 
 	//setup timer.
-	stop := u.startTimer(save)
+	stop := u.scope.Timer(save).Start().Stop
 
 	//rollback if there is a panic.
 	defer func() {
@@ -258,7 +258,7 @@ func (u *bestEffortUnit) Save() (err error) {
 			panic(r)
 		}
 		if err == nil {
-			u.incrementCounter(saveSuccess, 1)
+			u.scope.Counter(saveSuccess).Inc(1)
 		}
 	}()
 

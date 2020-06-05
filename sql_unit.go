@@ -107,18 +107,17 @@ func (u *sqlUnit) Remove(entities ...interface{}) error {
 func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
 
 	//setup timer.
-	stop := u.startTimer(rollback)
+	stop := u.scope.Timer(rollback).Start().Stop
 
 	//log and capture metrics.
 	defer func() {
 		stop()
 		if err != nil {
-			u.incrementCounter(rollbackFailure, 1)
+			u.scope.Counter(rollbackFailure).Inc(1)
 		} else {
-			u.incrementCounter(rollbackSuccess, 1)
+			u.scope.Counter(rollbackSuccess).Inc(1)
 		}
 	}()
-
 	err = tx.Rollback()
 	return
 }
@@ -164,11 +163,11 @@ func (u *sqlUnit) applyDeletes(tx *sql.Tx) (err error) {
 func (u *sqlUnit) Save() (err error) {
 
 	//setup timer.
-	stop := u.startTimer(save)
+	stop := u.scope.Timer(save).Start().Stop
 	defer func() {
 		stop()
 		if err == nil {
-			u.incrementCounter(saveSuccess, 1)
+			u.scope.Counter(saveSuccess).Inc(1)
 		}
 	}()
 
@@ -177,7 +176,7 @@ func (u *sqlUnit) Save() (err error) {
 	if err != nil {
 		// consider a failure to begin transaction as successful rollback,
 		// since none of the desired changes are applied.
-		u.incrementCounter(rollbackSuccess, 1)
+		u.scope.Counter(rollbackSuccess).Inc(1)
 		u.logger.Error(err.Error())
 		return
 	}
@@ -211,7 +210,7 @@ func (u *sqlUnit) Save() (err error) {
 		// consider error during transaction commit as successful rollback,
 		// since the rollback is implicitly done.
 		// please see https://golang.org/src/database/sql/sql.go#L1991 for reference.
-		u.incrementCounter(rollbackSuccess, 1)
+		u.scope.Counter(rollbackSuccess).Inc(1)
 		u.logger.Error(err.Error())
 		return
 	}
