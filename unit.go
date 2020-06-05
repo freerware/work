@@ -36,6 +36,10 @@ var (
 	// when attempting to add, alter, remove, or register an entity
 	// that doesn't have a corresponding data mapper.
 	ErrMissingDataMapper = errors.New("missing data mapper for entity")
+
+	// ErrNoDataMapper represents the error that occurs when attempting
+	// to create a work unit without any data mappers.
+	ErrNoDataMapper = errors.New("must have at least one data mapper")
 )
 
 // Unit represents an atomic set of entity changes.
@@ -87,28 +91,6 @@ func newUnit(options UnitOptions) unit {
 	return u
 }
 
-func (u *unit) hasLogger() bool {
-	return u.logger != nil
-}
-
-func (u *unit) logError(message string, fields ...zap.Field) {
-	if u.hasLogger() {
-		u.logger.Error(message, fields...)
-	}
-}
-
-func (u *unit) logInfo(message string, fields ...zap.Field) {
-	if u.hasLogger() {
-		u.logger.Info(message, fields...)
-	}
-}
-
-func (u *unit) logDebug(message string, fields ...zap.Field) {
-	if u.hasLogger() {
-		u.logger.Debug(message, fields...)
-	}
-}
-
 func (u *unit) hasScope() bool {
 	return u.scope != nil
 }
@@ -131,7 +113,8 @@ func (u *unit) register(checker func(t TypeName) bool, entities ...interface{}) 
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
-			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			u.logger.Error(
+				ErrMissingDataMapper.Error(), zap.String("typeName", tName.String()))
 			return ErrMissingDataMapper
 		}
 		if _, ok := u.registered[tName]; !ok {
@@ -148,7 +131,8 @@ func (u *unit) add(checker func(t TypeName) bool, entities ...interface{}) error
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
-			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			u.logger.Error(
+				ErrMissingDataMapper.Error(), zap.String("typeName", tName.String()))
 			return ErrMissingDataMapper
 		}
 
@@ -165,7 +149,8 @@ func (u *unit) alter(checker func(t TypeName) bool, entities ...interface{}) err
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
-			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			u.logger.Error(
+				ErrMissingDataMapper.Error(), zap.String("typeName", tName.String()))
 			return ErrMissingDataMapper
 		}
 
@@ -182,7 +167,8 @@ func (u *unit) remove(checker func(t TypeName) bool, entities ...interface{}) er
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
-			u.logError("missing data mapper", zap.String("typeName", tName.String()))
+			u.logger.Error(
+				ErrMissingDataMapper.Error(), zap.String("typeName", tName.String()))
 			return ErrMissingDataMapper
 		}
 
