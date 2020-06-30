@@ -16,9 +16,9 @@
 package work
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/uber-go/tally"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -45,14 +45,23 @@ type bestEffortUnit struct {
 // with adversity, attempts rollback a single time.
 func NewBestEffortUnit(
 	mappers map[TypeName]DataMapper, options ...Option) (Unit, error) {
+	// validate.
 	if len(mappers) < 1 {
-		return nil, errors.New("must have at least one data mapper")
+		return nil, ErrNoDataMapper
 	}
 
-	var o UnitOptions
-	for _, applyOption := range options {
-		applyOption(&o)
+	// set defaults.
+	o := UnitOptions{
+		Logger: zap.NewNop(),
+		Scope:  tally.NoopScope,
 	}
+
+	// apply options.
+	for _, opt := range options {
+		opt(&o)
+	}
+	o.Scope = o.Scope.Tagged(bestEffortUnitTag)
+
 	u := bestEffortUnit{
 		unit:              newUnit(o),
 		mappers:           mappers,
@@ -60,21 +69,17 @@ func NewBestEffortUnit(
 		successfulUpdates: make(map[TypeName][]interface{}),
 		successfulDeletes: make(map[TypeName][]interface{}),
 	}
-
-	if u.hasScope() {
-		u.scope = u.scope.Tagged(bestEffortUnitTag)
-	}
 	return &u, nil
 }
 
 func (u *bestEffortUnit) rollbackInserts() (err error) {
 
 	//delete successfully inserted entities.
-	u.logDebug("attempting to rollback inserted entities",
+	u.logger.Debug("attempting to rollback inserted entities",
 		zap.Int("count", u.successfulInsertCount))
 	for typeName, inserts := range u.successfulInserts {
 		if err = u.mappers[typeName].Delete(inserts...); err != nil {
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
 	}
@@ -84,11 +89,11 @@ func (u *bestEffortUnit) rollbackInserts() (err error) {
 func (u *bestEffortUnit) rollbackUpdates() (err error) {
 
 	//reapply previously registered state for the entities.
-	u.logDebug("attempting to rollback updated entities",
+	u.logger.Debug("attempting to rollback updated entities",
 		zap.Int("count", u.successfulUpdateCount))
 	for typeName, r := range u.registered {
 		if err = u.mappers[typeName].Update(r...); err != nil {
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
 	}
@@ -98,11 +103,11 @@ func (u *bestEffortUnit) rollbackUpdates() (err error) {
 func (u *bestEffortUnit) rollbackDeletes() (err error) {
 
 	//reinsert successfully deleted entities.
-	u.logDebug("attempting to rollback deleted entities",
+	u.logger.Debug("attempting to rollback deleted entities",
 		zap.Int("count", u.successfulDeleteCount))
 	for typeName, deletes := range u.successfulDeletes {
 		if err = u.mappers[typeName].Insert(deletes...); err != nil {
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
 	}
@@ -112,22 +117,22 @@ func (u *bestEffortUnit) rollbackDeletes() (err error) {
 func (u *bestEffortUnit) rollback() (err error) {
 
 	//setup timer.
-	stop := u.startTimer(rollback)
+	stop := u.scope.Timer(rollback).Start().Stop
 
 	//log and capture metrics if there is a panic.
 	defer func() {
 		stop()
 		if r := recover(); r != nil {
 			msg := "panic: unable to rollback work unit"
-			u.logError(msg, zap.String("panic", fmt.Sprintf("%v", r)))
-			u.incrementCounter(rollbackFailure, 1)
+			u.logger.Error(msg, zap.String("panic", fmt.Sprintf("%v", r)))
+			u.scope.Counter(rollbackFailure).Inc(1)
 			panic(r)
 		}
 
 		if err != nil {
-			u.incrementCounter(rollbackFailure, 1)
+			u.scope.Counter(rollbackFailure).Inc(1)
 		} else {
-			u.incrementCounter(rollbackSuccess, 1)
+			u.scope.Counter(rollbackSuccess).Inc(1)
 		}
 	}()
 
@@ -146,12 +151,11 @@ func (u *bestEffortUnit) rollback() (err error) {
 }
 
 func (u *bestEffortUnit) applyInserts() (err error) {
-
-	u.logDebug("attempting to insert entities", zap.Int("count", len(u.additions)))
+	u.logger.Debug("attempting to insert entities", zap.Int("count", len(u.additions)))
 	for typeName, additions := range u.additions {
 		if err = u.mappers[typeName].Insert(additions...); err != nil {
 			err = multierr.Combine(err, u.rollback())
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
 		if _, ok := u.successfulInserts[typeName]; !ok {
@@ -165,12 +169,11 @@ func (u *bestEffortUnit) applyInserts() (err error) {
 }
 
 func (u *bestEffortUnit) applyUpdates() (err error) {
-
-	u.logDebug("attempting to update entities", zap.Int("count", len(u.alterations)))
+	u.logger.Debug("attempting to update entities", zap.Int("count", len(u.alterations)))
 	for typeName, alterations := range u.alterations {
 		if err = u.mappers[typeName].Update(alterations...); err != nil {
 			err = multierr.Combine(err, u.rollback())
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
 		if _, ok := u.successfulUpdates[typeName]; !ok {
@@ -184,12 +187,11 @@ func (u *bestEffortUnit) applyUpdates() (err error) {
 }
 
 func (u *bestEffortUnit) applyDeletes() (err error) {
-
-	u.logDebug("attempting to remove entities", zap.Int("count", len(u.removals)))
+	u.logger.Debug("attempting to remove entities", zap.Int("count", len(u.removals)))
 	for typeName, removals := range u.removals {
 		if err = u.mappers[typeName].Delete(removals...); err != nil {
 			err = multierr.Combine(err, u.rollback())
-			u.logError(err.Error(), zap.String("typeName", typeName.String()))
+			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
 		if _, ok := u.successfulDeletes[typeName]; !ok {
@@ -243,7 +245,7 @@ func (u *bestEffortUnit) Remove(entities ...interface{}) error {
 func (u *bestEffortUnit) Save() (err error) {
 
 	//setup timer.
-	stop := u.startTimer(save)
+	stop := u.scope.Timer(save).Start().Stop
 
 	//rollback if there is a panic.
 	defer func() {
@@ -251,12 +253,12 @@ func (u *bestEffortUnit) Save() (err error) {
 		if r := recover(); r != nil {
 			err = multierr.Combine(
 				fmt.Errorf("panic: unable to save work unit\n%v", r), u.rollback())
-			u.logError("panic: unable to save work unit",
+			u.logger.Error("panic: unable to save work unit",
 				zap.String("panic", fmt.Sprintf("%v", r)))
 			panic(r)
 		}
 		if err == nil {
-			u.incrementCounter(saveSuccess, 1)
+			u.scope.Counter(saveSuccess).Inc(1)
 		}
 	}()
 
@@ -277,7 +279,7 @@ func (u *bestEffortUnit) Save() (err error) {
 
 	totalCount :=
 		u.additionCount + u.alterationCount + u.removalCount + u.registerCount
-	u.logInfo("successfully saved unit",
+	u.logger.Info("successfully saved unit",
 		zap.Int("insertCount", u.additionCount),
 		zap.Int("updateCount", u.alterationCount),
 		zap.Int("deleteCount", u.removalCount),
