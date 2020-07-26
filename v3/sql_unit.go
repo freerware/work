@@ -50,8 +50,9 @@ func NewSQLUnit(
 
 	// set defaults.
 	o := UnitOptions{
-		Logger: zap.NewNop(),
-		Scope:  tally.NoopScope,
+		Logger:  zap.NewNop(),
+		Scope:   tally.NoopScope,
+		Actions: make(map[UnitActionType][]UnitAction),
 	}
 
 	// apply options.
@@ -123,10 +124,14 @@ func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
 }
 
 func (u *sqlUnit) applyInserts(tx *sql.Tx) (err error) {
-	u.logger.Debug("attempting to insert entities", zap.Int("count", u.additionCount))
 	for typeName, additions := range u.additions {
 		if err = u.mappers[typeName].Insert(tx, additions...); err != nil {
-			err = multierr.Combine(err, u.rollback(tx))
+			u.executeActions(UnitActionTypeBeforeRollback)
+			var errRb error
+			if errRb = u.rollback(tx); errRb == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
+			err = multierr.Combine(err, errRb)
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -135,10 +140,14 @@ func (u *sqlUnit) applyInserts(tx *sql.Tx) (err error) {
 }
 
 func (u *sqlUnit) applyUpdates(tx *sql.Tx) (err error) {
-	u.logger.Debug("attempting to update entities", zap.Int("count", u.alterationCount))
 	for typeName, alterations := range u.alterations {
 		if err = u.mappers[typeName].Update(tx, alterations...); err != nil {
-			err = multierr.Combine(err, u.rollback(tx))
+			u.executeActions(UnitActionTypeBeforeRollback)
+			var errRb error
+			if errRb = u.rollback(tx); errRb == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
+			err = multierr.Combine(err, errRb)
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -147,10 +156,13 @@ func (u *sqlUnit) applyUpdates(tx *sql.Tx) (err error) {
 }
 
 func (u *sqlUnit) applyDeletes(tx *sql.Tx) (err error) {
-	u.logger.Debug("attempting to remove entities", zap.Int("count", u.removalCount))
 	for typeName, removals := range u.removals {
 		if err = u.mappers[typeName].Delete(tx, removals...); err != nil {
-			err = multierr.Combine(err, u.rollback(tx))
+			u.executeActions(UnitActionTypeBeforeRollback)
+			var errRb error
+			if errRb = u.rollback(tx); errRb == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -161,6 +173,7 @@ func (u *sqlUnit) applyDeletes(tx *sql.Tx) (err error) {
 // Save commits the new additions, modifications, and removals
 // within the work unit to an SQL store.
 func (u *sqlUnit) Save() (err error) {
+	u.executeActions(UnitActionTypeBeforeSave)
 
 	//setup timer.
 	stop := u.scope.Timer(save).Start().Stop
@@ -168,6 +181,7 @@ func (u *sqlUnit) Save() (err error) {
 		stop()
 		if err == nil {
 			u.scope.Counter(saveSuccess).Inc(1)
+			u.executeActions(UnitActionTypeAfterSave)
 		}
 	}()
 
@@ -184,44 +198,46 @@ func (u *sqlUnit) Save() (err error) {
 	//rollback if there is a panic.
 	defer func() {
 		if r := recover(); r != nil {
+			u.executeActions(UnitActionTypeBeforeRollback)
+			if err = u.rollback(tx); err == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
 			msg := "panic: unable to save work unit"
-			err = multierr.Combine(fmt.Errorf("%s\n%v", msg, r), u.rollback(tx))
+			err = multierr.Combine(fmt.Errorf("%s\n%v", msg, r), err)
 			u.logger.Error(msg, zap.String("panic", fmt.Sprintf("%v", r)))
 			panic(r)
 		}
 	}()
 
 	//insert newly added entities.
+	u.executeActions(UnitActionTypeBeforeInserts)
 	if err = u.applyInserts(tx); err != nil {
 		return
 	}
+	u.executeActions(UnitActionTypeAfterInserts)
 
 	//update altered entities.
+	u.executeActions(UnitActionTypeBeforeUpdates)
 	if err = u.applyUpdates(tx); err != nil {
 		return
 	}
+	u.executeActions(UnitActionTypeAfterUpdates)
 
 	//delete removed entities.
+	u.executeActions(UnitActionTypeBeforeDeletes)
 	if err = u.applyDeletes(tx); err != nil {
 		return
 	}
+	u.executeActions(UnitActionTypeAfterDeletes)
 
 	if err = tx.Commit(); err != nil {
 		// consider error during transaction commit as successful rollback,
 		// since the rollback is implicitly done.
 		// please see https://golang.org/src/database/sql/sql.go#L1991 for reference.
+		u.executeActions(UnitActionTypeAfterRollback)
 		u.scope.Counter(rollbackSuccess).Inc(1)
 		u.logger.Error(err.Error())
 		return
 	}
-
-	totalCount :=
-		u.additionCount + u.alterationCount + u.removalCount + u.registerCount
-	u.logger.Info("successfully saved unit",
-		zap.Int("insertCount", u.additionCount),
-		zap.Int("updateCount", u.alterationCount),
-		zap.Int("deleteCount", u.removalCount),
-		zap.Int("registerCount", u.registerCount),
-		zap.Int("totalCount", totalCount))
 	return
 }

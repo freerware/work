@@ -73,9 +73,14 @@ type unit struct {
 	registerCount   int
 	logger          *zap.Logger
 	scope           tally.Scope
+	actions         map[UnitActionType][]UnitAction
 }
 
 func newUnit(options UnitOptions) unit {
+	if !options.DisableDefaultLoggingActions {
+		UnitDefaultLoggingActions()(&options)
+	}
+
 	u := unit{
 		additions:   make(map[TypeName][]interface{}),
 		alterations: make(map[TypeName][]interface{}),
@@ -83,11 +88,13 @@ func newUnit(options UnitOptions) unit {
 		registered:  make(map[TypeName][]interface{}),
 		logger:      options.Logger,
 		scope:       options.Scope.SubScope("unit"),
+		actions:     options.Actions,
 	}
 	return u
 }
 
 func (u *unit) register(checker func(t TypeName) bool, entities ...interface{}) error {
+	u.executeActions(UnitActionTypeBeforeRegister)
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
@@ -101,11 +108,12 @@ func (u *unit) register(checker func(t TypeName) bool, entities ...interface{}) 
 		u.registered[tName] = append(u.registered[tName], entity)
 		u.registerCount = u.registerCount + 1
 	}
+	u.executeActions(UnitActionTypeAfterRegister)
 	return nil
 }
 
 func (u *unit) add(checker func(t TypeName) bool, entities ...interface{}) error {
-
+	u.executeActions(UnitActionTypeBeforeAdd)
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
@@ -120,10 +128,12 @@ func (u *unit) add(checker func(t TypeName) bool, entities ...interface{}) error
 		u.additions[tName] = append(u.additions[tName], entity)
 		u.additionCount = u.additionCount + 1
 	}
+	u.executeActions(UnitActionTypeAfterAdd)
 	return nil
 }
 
 func (u *unit) alter(checker func(t TypeName) bool, entities ...interface{}) error {
+	u.executeActions(UnitActionTypeBeforeAlter)
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
@@ -138,10 +148,12 @@ func (u *unit) alter(checker func(t TypeName) bool, entities ...interface{}) err
 		u.alterations[tName] = append(u.alterations[tName], entity)
 		u.alterationCount = u.alterationCount + 1
 	}
+	u.executeActions(UnitActionTypeAfterAlter)
 	return nil
 }
 
 func (u *unit) remove(checker func(t TypeName) bool, entities ...interface{}) error {
+	u.executeActions(UnitActionTypeBeforeRemove)
 	for _, entity := range entities {
 		tName := TypeNameOf(entity)
 		if ok := checker(tName); !ok {
@@ -156,5 +168,19 @@ func (u *unit) remove(checker func(t TypeName) bool, entities ...interface{}) er
 		u.removals[tName] = append(u.removals[tName], entity)
 		u.removalCount = u.removalCount + 1
 	}
+	u.executeActions(UnitActionTypeAfterRemove)
 	return nil
+}
+
+func (u *unit) executeActions(actionType UnitActionType) {
+	for _, action := range u.actions[actionType] {
+		action(UnitActionContext{
+			Logger:          u.logger,
+			Scope:           u.scope,
+			AdditionCount:   u.additionCount,
+			AlterationCount: u.alterationCount,
+			RemovalCount:    u.removalCount,
+			RegisterCount:   u.registerCount,
+		})
+	}
 }

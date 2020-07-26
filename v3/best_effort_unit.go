@@ -151,10 +151,13 @@ func (u *bestEffortUnit) rollback() (err error) {
 }
 
 func (u *bestEffortUnit) applyInserts() (err error) {
-	u.logger.Debug("attempting to insert entities", zap.Int("count", len(u.additions)))
 	for typeName, additions := range u.additions {
 		if err = u.mappers[typeName].Insert(additions...); err != nil {
-			err = multierr.Combine(err, u.rollback())
+			u.executeActions(UnitActionTypeBeforeRollback)
+			var errRb error
+			if errRb = u.rollback(); errRb == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -169,10 +172,13 @@ func (u *bestEffortUnit) applyInserts() (err error) {
 }
 
 func (u *bestEffortUnit) applyUpdates() (err error) {
-	u.logger.Debug("attempting to update entities", zap.Int("count", len(u.alterations)))
 	for typeName, alterations := range u.alterations {
 		if err = u.mappers[typeName].Update(alterations...); err != nil {
-			err = multierr.Combine(err, u.rollback())
+			u.executeActions(UnitActionTypeBeforeRollback)
+			var errRb error
+			if errRb = u.rollback(); errRb == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -187,10 +193,14 @@ func (u *bestEffortUnit) applyUpdates() (err error) {
 }
 
 func (u *bestEffortUnit) applyDeletes() (err error) {
-	u.logger.Debug("attempting to remove entities", zap.Int("count", len(u.removals)))
 	for typeName, removals := range u.removals {
 		if err = u.mappers[typeName].Delete(removals...); err != nil {
-			err = multierr.Combine(err, u.rollback())
+			u.executeActions(UnitActionTypeBeforeRollback)
+			var errRb error
+			if errRb = u.rollback(); errRb == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
+			err = multierr.Combine(err, errRb)
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -243,6 +253,7 @@ func (u *bestEffortUnit) Remove(entities ...interface{}) error {
 // Save commits the new additions, modifications, and removals
 // within the work unit to a persistent store.
 func (u *bestEffortUnit) Save() (err error) {
+	u.executeActions(UnitActionTypeBeforeSave)
 
 	//setup timer.
 	stop := u.scope.Timer(save).Start().Stop
@@ -251,39 +262,41 @@ func (u *bestEffortUnit) Save() (err error) {
 	defer func() {
 		stop()
 		if r := recover(); r != nil {
+			u.executeActions(UnitActionTypeBeforeRollback)
+			if err = u.rollback(); err == nil {
+				u.executeActions(UnitActionTypeAfterRollback)
+			}
 			err = multierr.Combine(
-				fmt.Errorf("panic: unable to save work unit\n%v", r), u.rollback())
+				fmt.Errorf("panic: unable to save work unit\n%v", r), err)
 			u.logger.Error("panic: unable to save work unit",
 				zap.String("panic", fmt.Sprintf("%v", r)))
 			panic(r)
 		}
 		if err == nil {
 			u.scope.Counter(saveSuccess).Inc(1)
+			u.executeActions(UnitActionTypeAfterSave)
 		}
 	}()
 
 	//insert newly added entities.
+	u.executeActions(UnitActionTypeBeforeInserts)
 	if err = u.applyInserts(); err != nil {
 		return
 	}
+	u.executeActions(UnitActionTypeAfterInserts)
 
 	//update altered entities.
+	u.executeActions(UnitActionTypeBeforeUpdates)
 	if err = u.applyUpdates(); err != nil {
 		return
 	}
+	u.executeActions(UnitActionTypeAfterUpdates)
 
 	//delete removed entities.
+	u.executeActions(UnitActionTypeBeforeDeletes)
 	if err = u.applyDeletes(); err != nil {
 		return
 	}
-
-	totalCount :=
-		u.additionCount + u.alterationCount + u.removalCount + u.registerCount
-	u.logger.Info("successfully saved unit",
-		zap.Int("insertCount", u.additionCount),
-		zap.Int("updateCount", u.alterationCount),
-		zap.Int("deleteCount", u.removalCount),
-		zap.Int("registerCount", u.registerCount),
-		zap.Int("totalCount", totalCount))
+	u.executeActions(UnitActionTypeAfterDeletes)
 	return
 }
