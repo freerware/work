@@ -17,6 +17,7 @@ package work
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -74,6 +75,7 @@ type unit struct {
 	logger          *zap.Logger
 	scope           tally.Scope
 	actions         map[UnitActionType][]UnitAction
+	mutex           sync.RWMutex
 }
 
 func newUnit(options UnitOptions) unit {
@@ -102,11 +104,14 @@ func (u *unit) register(checker func(t TypeName) bool, entities ...interface{}) 
 				ErrMissingDataMapper.Error(), zap.String("typeName", tName.String()))
 			return ErrMissingDataMapper
 		}
+
+		u.mutex.Lock()
 		if _, ok := u.registered[tName]; !ok {
 			u.registered[tName] = []interface{}{}
 		}
 		u.registered[tName] = append(u.registered[tName], entity)
 		u.registerCount = u.registerCount + 1
+		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterRegister)
 	return nil
@@ -122,11 +127,13 @@ func (u *unit) add(checker func(t TypeName) bool, entities ...interface{}) error
 			return ErrMissingDataMapper
 		}
 
+		u.mutex.Lock()
 		if _, ok := u.additions[tName]; !ok {
 			u.additions[tName] = []interface{}{}
 		}
 		u.additions[tName] = append(u.additions[tName], entity)
 		u.additionCount = u.additionCount + 1
+		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterAdd)
 	return nil
@@ -142,11 +149,13 @@ func (u *unit) alter(checker func(t TypeName) bool, entities ...interface{}) err
 			return ErrMissingDataMapper
 		}
 
+		u.mutex.Lock()
 		if _, ok := u.alterations[tName]; !ok {
 			u.alterations[tName] = []interface{}{}
 		}
 		u.alterations[tName] = append(u.alterations[tName], entity)
 		u.alterationCount = u.alterationCount + 1
+		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterAlter)
 	return nil
@@ -162,11 +171,13 @@ func (u *unit) remove(checker func(t TypeName) bool, entities ...interface{}) er
 			return ErrMissingDataMapper
 		}
 
+		u.mutex.Lock()
 		if _, ok := u.removals[tName]; !ok {
 			u.removals[tName] = []interface{}{}
 		}
 		u.removals[tName] = append(u.removals[tName], entity)
 		u.removalCount = u.removalCount + 1
+		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterRemove)
 	return nil
