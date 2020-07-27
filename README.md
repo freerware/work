@@ -168,7 +168,7 @@ In order to transition to modules gracefully, we adhered to the
 
 ## Release information
 
-Versions `1.x.x` and `2.x.x` are currently in maintainence mode. Please upgrade to `3.x.x` to
+Versions `1.x.x` and `2.x.x` are currently in maintenance mode. Please upgrade to `3.x.x` to
 receive the latest and greatest features, such as [lifecycle actions][actions-pr] and 
 [concurrency support][concurrency-pr]!
 
