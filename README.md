@@ -166,6 +166,12 @@ Prior to `v3.0.0`, the project utilized [`dep`][dep] for dependency management.
 In order to transition to modules gracefully, we adhered to the
 [best practice recommendations][modules-wiki] authored by the Golang team.
 
+## Release information
+
+Versions `1.x.x` and `2.x.x` are currently in maintainence mode. Please upgrade to `3.x.x` to
+receive the latest and greatest features, such as [lifecycle actions][actions-pr] and 
+[concurrency support][concurrency-pr]!
+
 ## Contribute
 
 Want to lend us a hand? Check out our guidelines for
@@ -199,6 +205,8 @@ how we do things.
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
+[concurrency-pr]: https://github.com/freerware/work/pull/35
+[actions-pr]: https://github.com/freerware/work/pull/30
 [doc-img]: https://godoc.org/github.com/freerware/work?status.svg
 [doc]: https://godoc.org/github.com/freerware/work
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
