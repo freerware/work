@@ -217,7 +217,9 @@ func (u *bestEffortUnit) applyDeletes() (err error) {
 // Register tracks the provided entities as clean.
 func (u *bestEffortUnit) Register(entities ...interface{}) error {
 	c := func(t TypeName) bool {
+		u.mutex.RLock()
 		_, ok := u.mappers[t]
+		u.mutex.RUnlock()
 		return ok
 	}
 	return u.register(c, entities...)
@@ -226,7 +228,9 @@ func (u *bestEffortUnit) Register(entities ...interface{}) error {
 // Add marks the provided entities as new additions.
 func (u *bestEffortUnit) Add(entities ...interface{}) error {
 	c := func(t TypeName) bool {
+		u.mutex.RLock()
 		_, ok := u.mappers[t]
+		u.mutex.RUnlock()
 		return ok
 	}
 	return u.add(c, entities...)
@@ -235,7 +239,9 @@ func (u *bestEffortUnit) Add(entities ...interface{}) error {
 // Alter marks the provided entities as modifications.
 func (u *bestEffortUnit) Alter(entities ...interface{}) error {
 	c := func(t TypeName) bool {
+		u.mutex.RLock()
 		_, ok := u.mappers[t]
+		u.mutex.RUnlock()
 		return ok
 	}
 	return u.alter(c, entities...)
@@ -244,7 +250,9 @@ func (u *bestEffortUnit) Alter(entities ...interface{}) error {
 // Remove marks the provided entities as removals.
 func (u *bestEffortUnit) Remove(entities ...interface{}) error {
 	c := func(t TypeName) bool {
+		u.mutex.RLock()
 		_, ok := u.mappers[t]
+		u.mutex.RUnlock()
 		return ok
 	}
 	return u.remove(c, entities...)

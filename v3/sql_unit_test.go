@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -653,6 +654,31 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Add() {
 	s.NoError(err)
 }
 
+func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentAdd() {
+
+	// arrange.
+	foo := Foo{ID: 28}
+	bar := Bar{ID: "28"}
+
+	// action.
+	var err, err2 error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		err = s.sut.Add(foo)
+		wg.Done()
+	}()
+	go func() {
+		err2 = s.sut.Add(bar)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	// assert.
+	s.NoError(err)
+	s.NoError(err2)
+}
+
 func (s *SQLUnitTestSuite) TestSQLUnit_Alter_Empty() {
 
 	// arrange.
@@ -698,6 +724,31 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Alter() {
 
 	// assert.
 	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentAlter() {
+
+	// arrange.
+	foo := Foo{ID: 28}
+	bar := Bar{ID: "28"}
+
+	// action.
+	var err, err2 error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		err = s.sut.Alter(foo)
+		wg.Done()
+	}()
+	go func() {
+		err2 = s.sut.Alter(bar)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	// assert.
+	s.NoError(err)
+	s.NoError(err2)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Remove_Empty() {
@@ -747,6 +798,31 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Remove() {
 	s.NoError(err)
 }
 
+func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentRemove() {
+
+	// arrange.
+	foo := Foo{ID: 28}
+	bar := Bar{ID: "28"}
+
+	// action.
+	var err, err2 error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		err = s.sut.Remove(foo)
+		wg.Done()
+	}()
+	go func() {
+		err2 = s.sut.Remove(bar)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	// assert.
+	s.NoError(err)
+	s.NoError(err2)
+}
+
 func (s *SQLUnitTestSuite) TestSQLUnit_Register_Empty() {
 
 	// arrange.
@@ -793,6 +869,31 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Register() {
 
 	// assert.
 	s.NoError(err)
+}
+
+func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentRegister() {
+
+	// arrange.
+	foo := Foo{ID: 28}
+	bar := Bar{ID: "28"}
+
+	// action.
+	var err, err2 error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		err = s.sut.Register(foo)
+		wg.Done()
+	}()
+	go func() {
+		err2 = s.sut.Register(bar)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	// assert.
+	s.NoError(err)
+	s.NoError(err2)
 }
 
 func (s *SQLUnitTestSuite) TearDownTest() {
