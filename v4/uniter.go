@@ -23,12 +23,12 @@ type Uniter interface {
 }
 
 type uniter struct {
-	options []Option
+	options []UnitOption
 }
 
 // NewUniter creates a new uniter with the provided unit options.
-func NewUniter(options ...Option) Uniter {
-	return unit{options: options}
+func NewUniter(options ...UnitOption) Uniter {
+	return uniter{options: options}
 }
 
 // Unit constructs a new work unit.

@@ -15,6 +15,8 @@
 package work
 
 import (
+	"database/sql"
+
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
@@ -27,6 +29,7 @@ type UnitOptions struct {
 	Actions                      map[UnitActionType][]UnitAction
 	DisableDefaultLoggingActions bool
 	DataMappers                  map[TypeName]DataMapper
+	DB                           *sql.DB
 }
 
 // UnitOption applies an option to the provided configuration.

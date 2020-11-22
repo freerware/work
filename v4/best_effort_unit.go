@@ -16,9 +16,9 @@
 package work
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/uber-go/tally"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -44,6 +44,7 @@ func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx MapperContext
 	//delete successfully inserted entities.
 	u.logger.Debug("attempting to rollback inserted entities", zap.Int("count", u.successfulInsertCount))
 	for typeName, i := range u.successfulInserts {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -60,6 +61,7 @@ func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx MapperContext
 	//reapply previously registered state for the entities.
 	u.logger.Debug("attempting to rollback updated entities", zap.Int("count", u.successfulUpdateCount))
 	for typeName, r := range u.registered {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -76,6 +78,7 @@ func (u *bestEffortUnit) rollbackDeletes(ctx context.Context, mCtx MapperContext
 	//reinsert successfully deleted entities.
 	u.logger.Debug("attempting to rollback deleted entities", zap.Int("count", u.successfulDeleteCount))
 	for typeName, d := range u.successfulDeletes {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -125,6 +128,7 @@ func (u *bestEffortUnit) rollback(ctx context.Context, mCtx MapperContext) (err 
 
 func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, additions := range u.additions {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -150,6 +154,7 @@ func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (
 
 func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, alterations := range u.alterations {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -157,7 +162,7 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (
 		if err = m.Update(ctx, mCtx, alterations...); err != nil {
 			u.executeActions(UnitActionTypeBeforeRollback)
 			var errRb error
-			if errRb = u.rollback(); errRb == nil {
+			if errRb = u.rollback(ctx, mCtx); errRb == nil {
 				u.executeActions(UnitActionTypeAfterRollback)
 			}
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
@@ -175,6 +180,7 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (
 
 func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, removals := range u.removals {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -182,7 +188,7 @@ func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (
 		if err = m.Delete(ctx, mCtx, removals...); err != nil {
 			u.executeActions(UnitActionTypeBeforeRollback)
 			var errRb error
-			if errRb = u.rollback(); errRb == nil {
+			if errRb = u.rollback(ctx, mCtx); errRb == nil {
 				u.executeActions(UnitActionTypeAfterRollback)
 			}
 			err = multierr.Combine(err, errRb)

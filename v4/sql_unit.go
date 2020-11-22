@@ -52,8 +52,9 @@ func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
 	return
 }
 
-func (u *sqlUnit) applyInserts(mCtx MapperContext) (err error) {
+func (u *sqlUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, additions := range u.additions {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -95,6 +96,7 @@ func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err err
 
 func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, removals := range u.removals {
+		var m DataMapper
 		m, err = u.mapper(typeName)
 		if err != nil {
 			return
@@ -128,7 +130,7 @@ func (u *sqlUnit) Save(ctx context.Context) (err error) {
 	}()
 
 	//start transaction.
-	tx, err := u.db.BeginContext(ctx, nil)
+	tx, err := u.db.BeginTx(ctx, nil)
 	mCtx := MapperContext{Tx: tx}
 	if err != nil {
 		// consider a failure to begin transaction as successful rollback,

@@ -79,6 +79,7 @@ type unit struct {
 	actions         map[UnitActionType][]UnitAction
 	mutex           sync.RWMutex
 	db              *sql.DB
+	mappers         map[TypeName]DataMapper
 }
 
 func options(options []UnitOption) UnitOptions {
@@ -99,7 +100,7 @@ func options(options []UnitOption) UnitOptions {
 }
 
 func NewUnit(opts ...UnitOption) (Unit, error) {
-	options := options(opts...)
+	options := options(opts)
 	u := unit{
 		additions:   make(map[TypeName][]interface{}),
 		alterations: make(map[TypeName][]interface{}),
@@ -113,29 +114,30 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 	}
 	if u.db != nil {
 		u.scope = u.scope.Tagged(sqlUnitTag)
-		return sqlUnit{unit: u}
+		return &sqlUnit{unit: u}, nil
 	}
 	u.scope = u.scope.Tagged(bestEffortUnitTag)
-	return bestEffortUnit{
+	return &bestEffortUnit{
 		unit:              u,
 		successfulInserts: make(map[TypeName][]interface{}),
 		successfulUpdates: make(map[TypeName][]interface{}),
 		successfulDeletes: make(map[TypeName][]interface{}),
-	}
+	}, nil
 }
 
 func (u *unit) Register(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeRegister)
 	for _, entity := range entities {
-		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
+		t := TypeNameOf(entity)
+		if _, err = u.mapper(t); err != nil {
 			return
 		}
 
 		u.mutex.Lock()
-		if _, ok := u.registered[tName]; !ok {
-			u.registered[tName] = []interface{}{}
+		if _, ok := u.registered[t]; !ok {
+			u.registered[t] = []interface{}{}
 		}
-		u.registered[tName] = append(u.registered[tName], entity)
+		u.registered[t] = append(u.registered[t], entity)
 		u.registerCount = u.registerCount + 1
 		u.mutex.Unlock()
 	}
@@ -146,15 +148,16 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 func (u *unit) Add(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeAdd)
 	for _, entity := range entities {
+		t := TypeNameOf(entity)
 		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
 			return
 		}
 
 		u.mutex.Lock()
-		if _, ok := u.additions[tName]; !ok {
-			u.additions[tName] = []interface{}{}
+		if _, ok := u.additions[t]; !ok {
+			u.additions[t] = []interface{}{}
 		}
-		u.additions[tName] = append(u.additions[tName], entity)
+		u.additions[t] = append(u.additions[t], entity)
 		u.additionCount = u.additionCount + 1
 		u.mutex.Unlock()
 	}
@@ -165,15 +168,16 @@ func (u *unit) Add(entities ...interface{}) (err error) {
 func (u *unit) Alter(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeAlter)
 	for _, entity := range entities {
+		t := TypeNameOf(entity)
 		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
 			return
 		}
 
 		u.mutex.Lock()
-		if _, ok := u.alterations[tName]; !ok {
-			u.alterations[tName] = []interface{}{}
+		if _, ok := u.alterations[t]; !ok {
+			u.alterations[t] = []interface{}{}
 		}
-		u.alterations[tName] = append(u.alterations[tName], entity)
+		u.alterations[t] = append(u.alterations[t], entity)
 		u.alterationCount = u.alterationCount + 1
 		u.mutex.Unlock()
 	}
@@ -184,15 +188,16 @@ func (u *unit) Alter(entities ...interface{}) (err error) {
 func (u *unit) Remove(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeRemove)
 	for _, entity := range entities {
+		t := TypeNameOf(entity)
 		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
 			return
 		}
 
 		u.mutex.Lock()
-		if _, ok := u.removals[tName]; !ok {
-			u.removals[tName] = []interface{}{}
+		if _, ok := u.removals[t]; !ok {
+			u.removals[t] = []interface{}{}
 		}
-		u.removals[tName] = append(u.removals[tName], entity)
+		u.removals[t] = append(u.removals[t], entity)
 		u.removalCount = u.removalCount + 1
 		u.mutex.Unlock()
 	}
@@ -208,7 +213,7 @@ func (u *unit) mapper(t TypeName) (DataMapper, error) {
 
 	m, ok := u.mappers[t]
 	if !ok {
-		u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", tName.String()))
+		u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
 		return nil, ErrMissingDataMapper
 	}
 	return m, nil

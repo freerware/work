@@ -1,4 +1,4 @@
-module github.com/freerware/work/v3
+module github.com/freerware/work/v4
 
 go 1.12
 
