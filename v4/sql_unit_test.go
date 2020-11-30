@@ -16,15 +16,15 @@
 package work_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/freerware/work/v3"
-	"github.com/freerware/work/v3/internal/mock"
+	"github.com/freerware/work/v4"
+	"github.com/freerware/work/v4/internal/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -42,7 +42,7 @@ type SQLUnitTestSuite struct {
 	_db     sqlmock.Sqlmock
 	scope   tally.TestScope
 	mc      *gomock.Controller
-	mappers map[work.TypeName]*mock.SQLDataMapper
+	mappers map[work.TypeName]*mock.DataMapper
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -57,13 +57,18 @@ type SQLUnitTestSuite struct {
 	rollbackFailureScopeName         string
 	rollbackSuccessScopeName         string
 	tags                             string
+
+	// suite state.
+	isSetup    bool
+	isTornDown bool
 }
 
 func TestSQLUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(SQLUnitTestSuite))
 }
 
-func (s *SQLUnitTestSuite) SetupTest() {
+func (s *SQLUnitTestSuite) Setup() {
+	defer func() { s.isSetup, s.isTornDown = true, false }()
 
 	// initialize metric names.
 	sep := "+"
@@ -88,16 +93,16 @@ func (s *SQLUnitTestSuite) SetupTest() {
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
-	s.mappers = make(map[work.TypeName]*mock.SQLDataMapper)
-	s.mappers[fooTypeName] = mock.NewSQLDataMapper(s.mc)
-	s.mappers[barTypeName] = mock.NewSQLDataMapper(s.mc)
+	s.mappers = make(map[work.TypeName]*mock.DataMapper)
+	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
 
 	var err error
 	s.db, s._db, err = sqlmock.New()
 	s.Require().NoError(err)
 
 	// construct SUT.
-	dm := make(map[work.TypeName]work.SQLDataMapper)
+	dm := make(map[work.TypeName]work.DataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
@@ -107,798 +112,500 @@ func (s *SQLUnitTestSuite) SetupTest() {
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	s.scope = ts
-	s.sut, err = work.NewSQLUnit(dm, s.db, work.UnitLogger(l), work.UnitScope(ts))
+	opts := []work.UnitOption{
+		work.UnitDataMappers(dm),
+		work.UnitLogger(l),
+		work.UnitScope(ts),
+		work.UnitDB(s.db),
+	}
+	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_NewSQLUnit_MissingDataMappers() {
-
-	// action.
-	var err error
-	s.sut, err = work.NewSQLUnit(map[work.TypeName]work.SQLDataMapper{}, s.db)
-
-	// assert.
-	s.Error(err)
+func (s *SQLUnitTestSuite) SetupTest() {
+	if !s.isSetup {
+		s.Setup()
+	}
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_TransactionBeginError() {
-
-	// arrange.
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
+// break out setup into a function so we can call it in table driven tests.
+// break out tests cases into separate function.
+// create type to represent test case.
+func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
+	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
+	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
+	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
+	return []TableDrivenTest{
+		{
+			name:      "TransactionBeginError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "TransactionBeginError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 1)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
+		{
+			name:      "InsertError",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "InsertError_MetricsEmitted",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "InsertAndRollbackError",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("ouch; whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "InsertAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
+			},
+			ctx: context.Background(),
+			err: errors.New("ouch; whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "UpdateError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "UpdateError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "UpdateAndRollbackError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("ouch; whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "UpdateAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch"))
+			},
+			ctx: context.Background(),
+			err: errors.New("ouch; whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "DeleteError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "DeleteError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "DeleteAndRollbackError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "DeleteAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "Panic",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+			panics:     true,
+		},
+		{
+			name:      "Panic_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+			panics: true,
+		},
+		{
+			name:      "PanicAndRollbackError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("ouch") })
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+			panics:     true,
+		},
+		{
+			name:      "PanicAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("ouch") })
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+			panics: true,
+		},
+		{
+			name:      "CommitError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "CommitError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 1)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
+		{
+			name:      "Success",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectCommit()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+		},
+		{
+			name:      "Success_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectCommit()
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 1)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
 	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Remove(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 1)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback()
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_InsertAndRollbackError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback()
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_UpdateAndRollbackError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback()
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_DeleteAndRollbackError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(errors.New("whoa"))
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback()
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).
-		Do(func() { panic("whoa") })
-
-	// action + assert.
-	s.Require().Panics(func() { s.sut.Save() })
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).
-		Do(func() { panic("whoa") })
-
-	// action + assert.
-	s.Require().Panics(func() { s.sut.Save() })
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_CommitError() {
-
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(nil)
-
-	// action.
-	err := s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.Require().Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 1)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 }
 
 func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
+	// test cases.
+	tests := s.subtests()
+	// execute test cases.
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			// setup.
+			s.Setup()
 
-	// arrange.
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectCommit()
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(nil)
+			// arrange.
+			s.Require().NoError(s.sut.Add(test.additions...))
+			s.Require().NoError(s.sut.Alter(test.alters...))
+			s.Require().NoError(s.sut.Remove(test.removals...))
+			test.expectations(test.ctx, test.additions, test.alters, test.removals)
 
-	// action.
-	err := s.sut.Save()
+			// action + assert.
+			if test.panics {
+				s.Require().Panics(func() { s.sut.Save(test.ctx) })
+			} else {
+				err := s.sut.Save(test.ctx)
+				if test.err != nil {
+					s.Require().EqualError(err, test.err.Error())
+				} else {
+					s.Require().NoError(err)
+				}
+			}
+			s.Require().NoError(s._db.ExpectationsWereMet())
+			test.assertions()
 
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.NoError(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 1)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			// tear down.
+			s.TearDown()
+		})
+	}
 }
 
-func (s *SQLUnitTestSuite) TestSQLUnit_Save_NoOptions() {
+func (s *SQLUnitTestSuite) TearDown() {
+	defer func() { s.isSetup, s.isTornDown = false, true }()
 
-	// arrange.
-	dm := make(map[work.TypeName]work.SQLDataMapper)
-	for t, m := range s.mappers {
-		dm[t] = m
-	}
-	var err error
-	s.sut, err = work.NewSQLUnit(dm, s.db)
-	s.Require().NoError(err)
-
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s._db.ExpectBegin()
-	s._db.ExpectCommit()
-	s.mappers[fooType].EXPECT().Insert(gomock.Any(), addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(gomock.Any(), addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).Return(nil)
-
-	// action.
-	err = s.sut.Save()
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Require().NoError(s._db.ExpectationsWereMet())
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Add_Empty() {
-
-	// arrange.
-	entities := []interface{}{}
-
-	// action.
-	err := s.sut.Add(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Add_MissingDataMapper() {
-
-	// arrange.
-	entities := []interface{}{
-		Foo{ID: 28},
-	}
-	mappers := map[work.TypeName]work.SQLDataMapper{
-		work.TypeNameOf(Bar{}): &mock.SQLDataMapper{},
-	}
-	var err error
-	s.sut, err = work.NewSQLUnit(mappers, s.db)
-	s.Require().NoError(err)
-
-	// action.
-	err = s.sut.Add(entities...)
-
-	// assert.
-	s.Error(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Add() {
-
-	// arrange.
-	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-
-	// action.
-	err := s.sut.Add(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentAdd() {
-
-	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
-
-	// action.
-	var err, err2 error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		err = s.sut.Add(foo)
-		wg.Done()
-	}()
-	go func() {
-		err2 = s.sut.Add(bar)
-		wg.Done()
-	}()
-	wg.Wait()
-
-	// assert.
-	s.NoError(err)
-	s.NoError(err2)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Alter_Empty() {
-
-	// arrange.
-	entities := []interface{}{}
-
-	// action.
-	err := s.sut.Alter(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Alter_MissingDataMapper() {
-
-	// arrange.
-	entities := []interface{}{
-		Foo{ID: 28},
-	}
-	mappers := map[work.TypeName]work.SQLDataMapper{
-		work.TypeNameOf(Bar{}): &mock.SQLDataMapper{},
-	}
-	var err error
-	s.sut, err = work.NewSQLUnit(mappers, s.db)
-	s.Require().NoError(err)
-
-	// action.
-	err = s.sut.Alter(entities...)
-
-	// assert.
-	s.Error(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Alter() {
-
-	// arrange.
-	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-
-	// action.
-	err := s.sut.Alter(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentAlter() {
-
-	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
-
-	// action.
-	var err, err2 error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		err = s.sut.Alter(foo)
-		wg.Done()
-	}()
-	go func() {
-		err2 = s.sut.Alter(bar)
-		wg.Done()
-	}()
-	wg.Wait()
-
-	// assert.
-	s.NoError(err)
-	s.NoError(err2)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Remove_Empty() {
-
-	// arrange.
-	entities := []interface{}{}
-
-	// action.
-	err := s.sut.Remove(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Remove_MissingDataMapper() {
-
-	// arrange.
-	entities := []interface{}{
-		Bar{ID: "28"},
-	}
-	mappers := map[work.TypeName]work.SQLDataMapper{
-		work.TypeNameOf(Foo{}): &mock.SQLDataMapper{},
-	}
-	var err error
-	s.sut, err = work.NewSQLUnit(mappers, s.db)
-	s.Require().NoError(err)
-
-	// action.
-	err = s.sut.Remove(entities...)
-
-	// assert.
-	s.Error(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Remove() {
-
-	// arrange.
-	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-
-	// action.
-	err := s.sut.Remove(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentRemove() {
-
-	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
-
-	// action.
-	var err, err2 error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		err = s.sut.Remove(foo)
-		wg.Done()
-	}()
-	go func() {
-		err2 = s.sut.Remove(bar)
-		wg.Done()
-	}()
-	wg.Wait()
-
-	// assert.
-	s.NoError(err)
-	s.NoError(err2)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Register_Empty() {
-
-	// arrange.
-	entities := []interface{}{}
-
-	// action.
-	err := s.sut.Register(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestUnit_Register_MissingDataMapper() {
-
-	// arrange.
-	entities := []interface{}{
-		Bar{ID: "28"},
-	}
-	mappers := map[work.TypeName]work.SQLDataMapper{
-		work.TypeNameOf(Foo{}): &mock.SQLDataMapper{},
-	}
-	var err error
-	s.sut, err = work.NewSQLUnit(mappers, s.db)
-	s.Require().NoError(err)
-
-	// action.
-	err = s.sut.Register(entities...)
-
-	// assert.
-	s.Require().Error(err)
-	s.EqualError(err, work.ErrMissingDataMapper.Error())
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_Register() {
-
-	// arrange.
-	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-
-	// action.
-	err := s.sut.Register(entities...)
-
-	// assert.
-	s.NoError(err)
-}
-
-func (s *SQLUnitTestSuite) TestSQLUnit_ConcurrentRegister() {
-
-	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
-
-	// action.
-	var err, err2 error
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		err = s.sut.Register(foo)
-		wg.Done()
-	}()
-	go func() {
-		err2 = s.sut.Register(bar)
-		wg.Done()
-	}()
-	wg.Wait()
-
-	// assert.
-	s.NoError(err)
-	s.NoError(err2)
-}
-
-func (s *SQLUnitTestSuite) TearDownTest() {
 	s.db.Close()
 	s.mc.Finish()
 	s.sut = nil
 	s.scope = nil
+}
+
+func (s *SQLUnitTestSuite) TearDownTest() {
+	if !s.isTornDown {
+		s.TearDown()
+	}
 }

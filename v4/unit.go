@@ -112,6 +112,9 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		db:          options.DB,
 		mappers:     options.DataMappers,
 	}
+	if len(u.mappers) == 0 {
+		return nil, ErrNoDataMapper
+	}
 	if u.db != nil {
 		u.scope = u.scope.Tagged(sqlUnitTag)
 		return &sqlUnit{unit: u}, nil

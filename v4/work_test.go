@@ -15,10 +15,24 @@
 
 package work_test
 
+import "context"
+
 type Foo struct {
 	ID int
 }
 
 type Bar struct {
 	ID string
+}
+
+type TableDrivenTest struct {
+	name         string
+	additions    []interface{}
+	alters       []interface{}
+	removals     []interface{}
+	expectations func(ctx context.Context, additions, alters, removals []interface{})
+	ctx          context.Context
+	err          error
+	assertions   func()
+	panics       bool
 }

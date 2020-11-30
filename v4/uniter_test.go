@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/freerware/work/v3"
-	"github.com/freerware/work/v3/internal/mock"
+	"github.com/freerware/work/v4"
+	"github.com/freerware/work/v4/internal/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -63,26 +63,37 @@ func (s *UniterTestSuite) SetupTest() {
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
-	s.sut = work.NewUniter(work.UnitDataMappers(mappers), work.UnitDB(s.db))
+	s.sut = work.NewUniter(work.UnitDataMappers(dm), work.UnitDB(s.db))
 }
 
-func (s *UniterTestSuite) TestUniter_Unit() {
+func (s *UniterTestSuite) TestUniter() {
+	// test cases.
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{name: "Unit", err: nil},
+		{name: "UnitError", err: nil},
+	}
+	// execute test cases.
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			// action.
+			_, err := s.sut.Unit()
 
-	//action.
-	_, err := s.sut.Unit()
-
-	//assert.
-	s.NoError(err)
+			// assert.
+			if test.err != nil {
+				s.Require().Error(err)
+				s.Require().EqualError(err, test.err.Error())
+			} else {
+				s.Require().NoError(err)
+			}
+		})
+	}
 }
 
-func (s *UniterTestSuite) TestUniter_UnitError() {
-
-	//arrange.
-	s.sut = work.NewUniter()
-
-	//action.
-	_, err := s.sut.Unit()
-
-	//assert.
-	s.Error(err)
+func (s *UniterTestSuite) TearDownTest() {
+	s.sut = nil
+	s.mappers = nil
+	s.db = nil
 }

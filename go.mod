@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
-	github.com/golang/mock v1.3.1
+	github.com/golang/mock v1.4.4
 	github.com/stretchr/testify v1.4.0
 	github.com/uber-go/tally v3.3.13+incompatible
 	go.uber.org/multierr v1.4.0

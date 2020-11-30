@@ -16,13 +16,11 @@
 package work_test
 
 import (
-	"errors"
-	"fmt"
 	"sync"
 	"testing"
 
-	"github.com/freerware/work/v3"
-	"github.com/freerware/work/v3/internal/mock"
+	"github.com/freerware/work/v4"
+	"github.com/freerware/work/v4/internal/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -36,8 +34,12 @@ type UnitTestSuite struct {
 	sut work.Unit
 
 	// mocks.
+	scope   tally.TestScope
 	mappers map[work.TypeName]*mock.DataMapper
 	mc      *gomock.Controller
+
+	// metrics scope names and tags.
+	scopePrefix string
 }
 
 func TestUnitTestSuite(t *testing.T) {
@@ -63,13 +65,14 @@ func (s *UnitTestSuite) SetupTest() {
 		dm[t] = m
 	}
 
+	s.scopePrefix = "test"
 	c := zap.NewDevelopmentConfig()
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	s.scope = ts
 	var err error
-	opts := []UnitOption{work.UnitDataMappers(dm), work.UnitLogger(l), work.UnitScope(ts)}
+	opts := []work.UnitOption{work.UnitDataMappers(dm), work.UnitLogger(l), work.UnitScope(ts)}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 }
@@ -82,6 +85,18 @@ func (s *UnitTestSuite) SetupTest() {
   - entities --> slice of entities to pass in as args.
   - err --> nil when no error is expected, or expected error.
 */
+
+func (s *UnitTestSuite) TestUnit_NewUnit_NoDataMappers() {
+
+	// action.
+	var err error
+	dm := map[work.TypeName]work.DataMapper{}
+	opts := []work.UnitOption{work.UnitDataMappers(dm)}
+	s.sut, err = work.NewUnit(opts...)
+
+	// assert.
+	s.EqualError(err, work.ErrNoDataMapper.Error())
+}
 
 func (s *UnitTestSuite) TestUnit_Add_Empty() {
 
