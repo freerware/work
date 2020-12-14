@@ -27,10 +27,11 @@ type Bar struct {
 
 type TableDrivenTest struct {
 	name         string
+	registers    []interface{}
 	additions    []interface{}
 	alters       []interface{}
 	removals     []interface{}
-	expectations func(ctx context.Context, additions, alters, removals []interface{})
+	expectations func(ctx context.Context, registers, additions, alters, removals []interface{})
 	ctx          context.Context
 	err          error
 	assertions   func()

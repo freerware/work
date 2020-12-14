@@ -128,9 +128,6 @@ func (s *SQLUnitTestSuite) SetupTest() {
 	}
 }
 
-// break out setup into a function so we can call it in table driven tests.
-// break out tests cases into separate function.
-// create type to represent test case.
 func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
 	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
@@ -141,7 +138,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
 			},
 			ctx:        context.Background(),
@@ -153,7 +150,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
 			},
 			ctx: context.Background(),
@@ -170,7 +167,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
@@ -184,7 +181,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
@@ -204,7 +201,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
@@ -218,7 +215,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
@@ -238,7 +235,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -254,7 +251,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -276,7 +273,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -292,7 +289,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -314,7 +311,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -332,7 +329,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -356,7 +353,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -374,7 +371,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -398,7 +395,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -416,7 +413,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -440,7 +437,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -458,7 +455,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -482,7 +479,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -500,7 +497,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -523,7 +520,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectCommit()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -540,7 +537,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			additions: []interface{}{foos[0], bars[0]},
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
-			expectations: func(ctx context.Context, additions, alters, removals []interface{}) {
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectCommit()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -573,7 +570,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 			s.Require().NoError(s.sut.Add(test.additions...))
 			s.Require().NoError(s.sut.Alter(test.alters...))
 			s.Require().NoError(s.sut.Remove(test.removals...))
-			test.expectations(test.ctx, test.additions, test.alters, test.removals)
+			test.expectations(test.ctx, test.registers, test.additions, test.alters, test.removals)
 
 			// action + assert.
 			if test.panics {

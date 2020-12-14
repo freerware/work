@@ -16,13 +16,13 @@
 package work_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 
-	"github.com/freerware/work/v3"
-	"github.com/freerware/work/v3/internal/mock"
+	"github.com/freerware/work/v4"
+	"github.com/freerware/work/v4/internal/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -53,13 +53,18 @@ type BestEffortUnitTestSuite struct {
 	rollbackFailureScopeName         string
 	rollbackSuccessScopeName         string
 	tags                             string
+
+	// suite state.
+	isSetup    bool
+	isTornDown bool
 }
 
 func TestBestEffortUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(BestEffortUnitTestSuite))
 }
 
-func (s *BestEffortUnitTestSuite) SetupTest() {
+func (s *BestEffortUnitTestSuite) Setup() {
+	defer func() { s.isSetup, s.isTornDown = true, false }()
 
 	// initialize metric names.
 	sep := "+"
@@ -100,561 +105,630 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	s.scope = ts
 	var err error
-	opts := []UnitOption{work.UnitDataMappers(dm), work.UnitLogger(l), work.UnitScope(ts)}
+	opts := []work.UnitOption{
+		work.UnitDataMappers(dm),
+		work.UnitLogger(l),
+		work.UnitScope(ts),
+	}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_NewUnit_MissingDataMappers() {
-
-	// action.
-	var err error
-	dm := map[work.TypeName]work.DataMapper{}
-	opts := []UnitOption{work.UnitDataMappers(dm)}
-	s.sut, err = work.NewUnit(opts...)
-
-	// assert.
-	s.Error(err)
+func (s *BestEffortUnitTestSuite) SetupTest() {
+	if !s.isSetup {
+		s.Setup()
+	}
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertError() {
+func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
+	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}, Foo{ID: 1111}}
+	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
+	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
+	return []TableDrivenTest{
+		{
+			name:      "InsertError",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
 
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "InsertError_MetricsEmitted",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "InsertAndRollbackError",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).
+					Return(errors.New("ouch"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[1]).
+					Return(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			err:        errors.New("ouch; whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "InsertAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).
+					Return(errors.New("ouch"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[1]).
+					Return(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("ouch; whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "UpdateError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa")).Times(1)
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "UpdateError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa")).Times(1)
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "UpdateAndRollbackError",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx:        context.Background(),
+			err:        errors.New("ouch; whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "UpdateAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx: context.Background(),
+			err: errors.New("ouch; whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "DeleteError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa"),
+			assertions: func() {},
+		},
+		{
+			name:      "DeleteError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "DeleteAndRollbackError",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx:        context.Background(),
+			err:        errors.New("whoa; ouch"),
+			assertions: func() {},
+		},
+		{
+			name:      "DeleteAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa; ouch"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+		},
+		{
+			name:      "Panic",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+			panics:     true,
+		},
+		{
+			name:      "Panic_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), registers[1]).Return(nil)
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+			panics: true,
+		},
+		{
+			name:      "PanicAndRollbackError",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
+					Do(func() { panic("whoa") })
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[1]).
+					Return(errors.New("whoa"))
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+			panics:     true,
+			err:        errors.New("whoa"),
+		},
+		{
+			name:      "PanicAndRollbackError_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
+					Do(func() { panic("whoa") })
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), registers[0], registers[1]).
+					Return(errors.New("whoa"))
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+			panics: true,
+		},
+		{
+			name:      "PanicAndRollbackPanic",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
+					Do(func() { panic("whoa") })
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].
+					EXPECT().Update(ctx, gomock.Any(), registers[0], registers[1]).
+					Do(func() { panic("whoa") })
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+			panics:     true,
+			err:        errors.New("whoa"),
+		},
+		{
+			name:      "PanicAndRollbackPanic_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
+					Do(func() { panic("whoa") })
+
+				// arrange - rollback invocations.
+				s.mappers[fooType].
+					EXPECT().Update(ctx, gomock.Any(), registers[0], registers[1]).
+					Do(func() { panic("whoa") })
+			},
+			ctx: context.Background(),
+			err: errors.New("whoa"),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
+			},
+			panics: true,
+		},
+		{
+			name:      "Success",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+		},
+		{
+			name:      "Success_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 1)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
 	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(err)
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].EXPECT().
-		Update(registeredEntities[1]).Return(nil)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_InsertAndRollbackError() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(err)
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[1]).Return(err)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateError() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(err).Times(1)
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Delete(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].EXPECT().
-		Update(registeredEntities[1]).Return(nil)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_UpdateAndRollbackError() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(err)
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(err)
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].EXPECT().
-		Update(registeredEntities[1]).Return(nil)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Error(err)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteError() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(err)
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Delete(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].EXPECT().
-		Update(registeredEntities[1]).Return(nil)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_DeleteAndRollbackError() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(err)
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(err)
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].EXPECT().
-		Update(registeredEntities[1]).Return(nil)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Error(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].
-		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Delete(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[2]).Return(nil)
-	s.mappers[barType].EXPECT().
-		Update(registeredEntities[1]).Return(nil)
-
-	// action + assert.
-	s.Require().Panics(func() { s.sut.Save(ctx) })
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	err := errors.New("whoa")
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].
-		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].EXPECT().
-		Update(registeredEntities[0], registeredEntities[1]).Return(err)
-
-	// action + assert.
-	s.Require().Panics(func() { s.sut.Save(ctx) })
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
-}
-
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic() {
-
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	registeredEntities := []interface{}{
-		Foo{ID: 1992},
-		Foo{ID: 1111},
-	}
-	s.sut.Register(registeredEntities...)
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].
-		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
-
-	// arrange - rollback invocations.
-	s.mappers[fooType].
-		EXPECT().Update(registeredEntities[0], registeredEntities[1]).
-		Do(func() { panic("whoa") })
-
-	// action + assert.
-	s.Require().Panics(func() { s.sut.Save(ctx) })
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 2)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
-	s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
 }
 
 func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
+	// test cases.
+	tests := s.subtests()
+	// execute test cases.
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			// setup.
+			s.Setup()
 
-	// arrange.
-	ctx := context.Background()
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(nil)
+			// arrange.
+			s.Require().NoError(s.sut.Register(test.registers...))
+			s.Require().NoError(s.sut.Add(test.additions...))
+			s.Require().NoError(s.sut.Alter(test.alters...))
+			s.Require().NoError(s.sut.Remove(test.removals...))
+			test.expectations(test.ctx, test.registers, test.additions, test.alters, test.removals)
 
-	// action.
-	err := s.sut.Save(ctx)
+			// action + assert.
+			if test.panics {
+				s.Require().Panics(func() { s.sut.Save(test.ctx) })
+			} else {
+				err := s.sut.Save(test.ctx)
+				if test.err != nil {
+					s.Require().EqualError(err, test.err.Error())
+				} else {
+					s.Require().NoError(err)
+				}
+			}
+			test.assertions()
 
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.NoError(err)
-	s.Len(s.scope.Snapshot().Counters(), 1)
-	s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
-	s.Len(s.scope.Snapshot().Timers(), 1)
-	s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			// tear down.
+			s.TearDown()
+		})
+	}
 }
 
-func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_NoOptions() {
+func (s *BestEffortUnitTestSuite) TearDown() {
+	defer func() { s.isSetup, s.isTornDown = false, true }()
 
-	// arrange.
-	ctx := context.Background()
-	dm := make(map[work.TypeName]work.DataMapper)
-	for t, m := range s.mappers {
-		dm[t] = m
-	}
-	var err error
-	s.sut, err = work.NewUnit(dm)
-	s.Require().NoError(err)
-
-	fooType := work.TypeNameOf(Foo{})
-	barType := work.TypeNameOf(Bar{})
-	addedEntities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
-	}
-	updatedEntities := []interface{}{
-		Foo{ID: 1992},
-		Bar{ID: "1992"},
-	}
-	removedEntities := []interface{}{
-		Foo{ID: 2},
-	}
-	addError := s.sut.Add(addedEntities...)
-	alterError := s.sut.Alter(updatedEntities...)
-	removeError := s.sut.Remove(removedEntities...)
-	s.mappers[fooType].EXPECT().Insert(addedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Insert(addedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
-	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
-	s.mappers[fooType].EXPECT().Delete(removedEntities[0]).Return(nil)
-
-	// action.
-	err = s.sut.Save(ctx)
-
-	// assert.
-	s.Require().NoError(addError)
-	s.Require().NoError(alterError)
-	s.Require().NoError(removeError)
-	s.NoError(err)
+	s.mc.Finish()
+	s.sut = nil
+	s.scope = nil
 }
 
 func (s *BestEffortUnitTestSuite) TearDownTest() {
-	s.sut = nil
-	s.mc.Finish()
+	if !s.isTornDown {
+		s.TearDown()
+	}
 }

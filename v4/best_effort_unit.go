@@ -139,6 +139,7 @@ func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (
 			if errRb = u.rollback(ctx, mCtx); errRb == nil {
 				u.executeActions(UnitActionTypeAfterRollback)
 			}
+			err = multierr.Combine(err, errRb)
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
@@ -165,6 +166,7 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (
 			if errRb = u.rollback(ctx, mCtx); errRb == nil {
 				u.executeActions(UnitActionTypeAfterRollback)
 			}
+			err = multierr.Combine(err, errRb)
 			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 			return
 		}
