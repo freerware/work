@@ -7,32 +7,7 @@
 [![Coverage Status][coverage-img]][coverage] [![Release][release-img]][release]
 [![License][license-img]][license] [![Blog][blog-img]][blog]
 
-## What is it?
-
-`work` does the heavy lifting of tracking changes that your application makes
-to entities within a particular operation. This is accomplished by using what we
-refer to as a "work unit", which is essentially an implementation of the
-[Unit Of Work][uow] pattern popularized by Martin Fowler. With work units,
-you no longer need to write any code to track, apply, or rollback changes
-atomically in your application. This lets you focus on just writing the code
-that handles changes when they happen.
-
-## Why use it?
-
-There are a bundle of benefits you get by using work units:
-
-- easier management of changes to your entities.
-- rollback of changes when chaos ensues.
-- centralization of save and rollback functionality.
-- reduced overhead when applying changes.
-- decoupling of code triggering changes from code that persists the changes.
-- shorter transactions for SQL datastores.
-
 ## How to use it?
-
-The following assumes your application has a variable (`dm`) of a type that
-satisfies [`work.DataMapper`][data-mapper-doc], and a variable (`db`) of type
-[`*sql.DB`][db-doc].
 
 ### Construction
 
@@ -45,7 +20,7 @@ f, b := Foo{}, Bar{}
 ft, bt := unit.TypeNameOf(f), unit.TypeNameOf(b)
 
 // data mappers.
-m := map[unit.TypeName]unit.DataMapper { ft: dm, bt: dm }
+m := map[unit.TypeName]unit.DataMapper { ft: fdm, bt: fdm }
 
 // 🎉
 opts = []unit.Option{ unit.DB(db), unit.DataMappers(m) }
@@ -139,33 +114,11 @@ opts = []unit.Option{
 	unit.DataMappers(m),
 	unit.Logger(l),
 }
-uniter := work.NewUniter(opts...)
+uniter := unit.NewUniter(opts...)
 
 // create the unit.
 u, err := uniter.Unit()
 ```
-
-## Dependancy Information
-
-As of [`v3.0.0`][modules-release], the project utilizes [modules][modules-doc].
-Prior to `v3.0.0`, the project utilized [`dep`][dep] for dependency management.
-
-In order to transition to modules gracefully, we adhered to the
-[best practice recommendations][modules-wiki] authored by the Golang team.
-
-## Contribute
-
-Want to lend us a hand? Check out our guidelines for
-[contributing][contributing].
-
-## License
-
-We are rocking an [Apache 2.0 license][apache-license] for this project.
-
-## Code of Conduct
-
-Please check out our [code of conduct][code-of-conduct] to get up to speed
-how we do things.
 
 [uow]: https://martinfowler.com/eaaCatalog/unitOfWork.html
 [sql-data-mapper-doc]: https://godoc.org/github.com/freerware/work#SQLDataMapper
