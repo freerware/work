@@ -19,20 +19,47 @@ that handles changes when they happen.
 
 ## Why use it?
 
-There are a bundle of benefits you get by using work units:
-
 - easier management of changes to your entities.
-- rollback of changes when chaos ensues.
+- automatic rollback of changes when chaos ensues.
 - centralization of save and rollback functionality.
 - reduced overhead when applying changes.
 - decoupling of code triggering changes from code that persists the changes.
-- shorter transactions for SQL datastores.
+- production-ready logs and metrics.
+
+For SQL datastores, also enjoy:
+
+- one transaction, one connection per unit.
+- three queries max.
+  - additions result in a single `INSERT`.
+  - alters result in a single `UPDATE`.
+  - removals result in a single `DELETE`.
+- shorter transaction times.
+  - transaction is opened only once the unit is ready to be saved.
+  - transaction only remains open as long as it takes for the unit to be saved.
 
 ## Release information
 
-Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
-`3.x.x+` to receive the latest and greatest features, such as
-[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
+### [4.0.0][]
+
+- Introduce `unit` package to alias all types.
+- API revamp. Using `work` has never been easier!
+
+### [3.2.0][v3.2.0]
+
+- Introduce [lifecycle actions][actions-pr].
+- Introduce [concurrency support][concurrency-pr].
+
+### [3.0.0][v3.0.0]
+
+- Introduce support for Go modules.
+
+### 2.x.x
+
+- NO LONGER SUPPORTED.
+
+### 1.x.x
+
+- NO LONGER SUPPORTED.
 
 ## Dependancy Information
 
@@ -89,3 +116,9 @@ how we do things.
 [release-img]: https://img.shields.io/github/tag/freerware/work.svg?label=version
 [blog]: https://medium.com/@freerjm/work-units-ec2da48cf574
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
+[v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
+[v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
+
+Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
+`3.x.x+` to receive the latest and greatest features, such as
+[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
