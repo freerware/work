@@ -84,17 +84,6 @@ Please check out our [code of conduct][code-of-conduct] to get up to speed
 how we do things.
 
 [uow]: https://martinfowler.com/eaaCatalog/unitOfWork.html
-[sql-data-mapper-doc]: https://godoc.org/github.com/freerware/work#SQLDataMapper
-[data-mapper-doc]: https://godoc.org/github.com/freerware/work#DataMapper
-[db-doc]: https://golang.org/pkg/database/sql/#DB
-[unit-doc]: https://godoc.org/github.com/freerware/work#Unit
-[zap]: https://github.com/uber-go/zap
-[tally]: https://github.com/uber-go/tally
-[logger-doc]: https://godoc.org/go.uber.org/zap#Logger
-[scope-doc]: https://godoc.org/github.com/uber-go/tally#Scope
-[uniter-doc]: https://godoc.org/github.com/freerware/work#Uniter
-[unit-logger-doc]: https://godoc.org/github.com/freerware/work#pkg-variables
-[unit-scope-doc]: https://godoc.org/github.com/freerware/work#pkg-variables
 [modules-doc]: https://golang.org/doc/go1.11#modules
 [modules-wiki]: https://github.com/golang/go/wiki/Modules#releasing-modules-v2-or-higher
 [modules-release]: https://github.com/freerware/work/releases/tag/v3.0.0
