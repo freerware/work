@@ -28,135 +28,11 @@ There are a bundle of benefits you get by using work units:
 - decoupling of code triggering changes from code that persists the changes.
 - shorter transactions for SQL datastores.
 
-## How to use it?
+## Release information
 
-The following assumes your application has a variable (`sdm`) of a type that
-satisfies [`work.SQLDataMapper`][sql-data-mapper-doc], a variable (`dm`) of
-a type that satisfies [`work.DataMapper`][data-mapper-doc], and a variable (`db`)
-of type [`*sql.DB`][db-doc].
-
-### Construction
-
-Starting with entities `Foo` and `Bar`,
-```go
-// type names.
-fType, bType :=
-	work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
-```
-
-we can create SQL work units:
-```go
-mappers := map[work.TypeName]work.SQLDataMapper {
-	fType: sdm,
-	bType: sdm,
-}
-
-unit, err := work.NewSQLUnit(mappers, db)
-if err != nil {
-	panic(err)
-}
-```
-
-or we can create "best effort" units:
-```go
-mappers := map[work.TypeName]work.DataMapper {
-	fType: dm,
-	bType: dm,
-}
-
-unit, err := work.NewBestEffortUnit(mappers)
-if err != nil {
-	panic(err)
-}
-```
-
-### Adding
-When creating new entities, use [`Add`][unit-doc]:
-```go
-additions := []interface{}{Foo{}, Bar{}}
-unit.Add(additions...)
-```
-
-### Updating
-When modifying existing entities, use [`Alter`][unit-doc]:
-```go
-updates := []interface{}{Foo{}, Bar{}}
-unit.Alter(updates...)
-```
-
-### Removing
-When removing existing entities, use [`Remove`][unit-doc]:
-```go
-removals := []interface{}{Foo{}, Bar{}}
-unit.Remove(removals...)
-```
-
-### Registering 
-When retrieving existing entities, track their intial state using
-[`Register`][unit-doc]:
-```go
-fetched := []interface{}{Foo{}, Bar{}}
-unit.Register(fetched...)
-```
-
-### Saving
-When you are ready to commit your work unit, use [`Save`][unit-doc]:
-```go
-if err := unit.Save(); err != nil {
-	panic(err)
-}
-```
-
-### Logging
-We use [`zap`][zap] as our logging library of choice. To leverage the logs
-emitted from the work units, utilize the [`work.UnitLogger`][unit-logger-doc]
-option with an instance of [`*zap.Logger`][logger-doc] upon creation:
-```go
-l, _ := zap.NewDevelopment()
-
-// create an SQL unit with logging.
-unit, err := work.NewSQLUnit(mappers, db, work.UnitLogger(l))
-if err != nil {
-	panic(err)
-}
-```
-
-### Metrics
-For emitting metrics, we use [`tally`][tally]. To utilize the metrics emitted
-from the work units, leverage the [`work.UnitScope`][unit-scope-doc] option
-with a [`tally.Scope`][scope-doc] upon creation. Assuming we have a
-scope `s`, it would look like so:
-```go
-unit, err := work.NewBestEffortUnit(mappers, work.UnitScope(s))
-if err != nil {
-	panic(err)
-}
-```
-
-#### Emitted Metrics
-
-| Name                             | Type    | Description                                      |
-| -------------------------------- | ------- | ------------------------------------------------ |
-| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.        |
-| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.       |
-| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.    |
-| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.  |
-| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit. |
-
-### Uniters
-In most circumstances, an application has many aspects that result in the
-creation of a work unit. To tackle that challenge, we recommend using
-[`work.Uniter`][uniter-doc] to create instances of [`work.Unit`][unit-doc],
-like so:
-```go
-uniter := work.NewSQLUniter(mappers, db)
-
-// create the unit.
-unit, err := uniter.Unit()
-if err != nil {
-	panic(err)
-}
-```
+Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
+`3.x.x+` to receive the latest and greatest features, such as
+[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
 
 ## Dependancy Information
 
@@ -199,6 +75,8 @@ how we do things.
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
+[concurrency-pr]: https://github.com/freerware/work/pull/35
+[actions-pr]: https://github.com/freerware/work/pull/30
 [doc-img]: https://godoc.org/github.com/freerware/work?status.svg
 [doc]: https://godoc.org/github.com/freerware/work
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
