@@ -42,35 +42,35 @@ Starting with entities `Foo` and `Bar`,
 f, b := Foo{}, Bar{}
 
 // type names.
-ft, bt := work.TypeNameOf(f), work.TypeNameOf(b)
+ft, bt := unit.TypeNameOf(f), unit.TypeNameOf(b)
 
 // data mappers.
-m := map[work.TypeName]work.UnitDataMapper { ft: dm, bt: dm }
+m := map[unit.TypeName]unit.DataMapper { ft: dm, bt: dm }
 
 // 🎉
-opts = []work.UnitOption{ work.UnitDB(db), work.UnitDataMappers(m) }
-unit, err := work.NewUnit(opts...)
+opts = []unit.Option{ unit.DB(db), unit.DataMappers(m) }
+unit, err := unit.New(opts...)
 ```
 
 ### Adding
 When creating new entities, use [`Add`][unit-doc]:
 ```go
 additions := []interface{}{ f, b }
-err := unit.Add(additions...)
+err := u.Add(additions...)
 ```
 
 ### Updating
 When modifying existing entities, use [`Alter`][unit-doc]:
 ```go
 updates := []interface{}{ f, b }
-err := unit.Alter(updates...)
+err := u.Alter(updates...)
 ```
 
 ### Removing
 When removing existing entities, use [`Remove`][unit-doc]:
 ```go
 removals := []interface{}{ f, b }
-err := unit.Remove(removals...)
+err := u.Remove(removals...)
 ```
 
 ### Registering 
@@ -78,39 +78,44 @@ When retrieving existing entities, track their intial state using
 [`Register`][unit-doc]:
 ```go
 fetched := []interface{}{ f, b }
-err := unit.Register(fetched...)
+err := u.Register(fetched...)
 ```
 
 ### Saving
 When you are ready to commit your work unit, use [`Save`][unit-doc]:
 ```go
 ctx := context.Background()
-err := unit.Save(ctx)
+err := u.Save(ctx)
 ```
 
 ### Logging
 We use [`zap`][zap] as our logging library of choice. To leverage the logs
-emitted from the work units, utilize the [`work.UnitLogger`][unit-logger-doc]
+emitted from the work units, utilize the [`unit.Logger`][unit-logger-doc]
 option with an instance of [`*zap.Logger`][logger-doc] upon creation:
 ```go
 // create logger.
 l, _ := zap.NewDevelopment()
 
-opts = []work.UnitOption{
-	work.UnitDB(db),
-	work.UnitDataMappers(m),
-	work.UnitLogger(l), // 🎉
+opts = []unit.Option{
+	unit.DB(db),
+	unit.DataMappers(m),
+	unit.Logger(l), // 🎉
 }
-unit, err := work.NewUnit(opts...)
+u, err := unit.New(opts...)
 ```
 
 ### Metrics
 For emitting metrics, we use [`tally`][tally]. To utilize the metrics emitted
-from the work units, leverage the [`work.UnitScope`][unit-scope-doc] option
+from the work units, leverage the [`unit.Scope`][unit-scope-doc] option
 with a [`tally.Scope`][scope-doc] upon creation. Assuming we have a
 scope `s`, it would look like so:
 ```go
-unit, err := work.NewBestEffortUnit(mappers, work.UnitScope(s))
+opts = []unit.Option{
+	unit.DB(db),
+	unit.DataMappers(m),
+	unit.Scope(s), // 🎉
+}
+u, err := unit.New(opts...)
 ```
 
 #### Emitted Metrics
@@ -126,18 +131,18 @@ unit, err := work.NewBestEffortUnit(mappers, work.UnitScope(s))
 ### Uniters
 In most circumstances, an application has many aspects that result in the
 creation of a work unit. To tackle that challenge, we recommend using
-[`work.Uniter`][uniter-doc] to create instances of [`work.Unit`][unit-doc],
+[`unit.Uniter`][uniter-doc] to create instances of [`unit.`][unit-doc],
 like so:
 ```go
-opts = []work.UnitOption{
-	work.UnitDB(db),
-	work.UnitDataMappers(m),
-	work.UnitLogger(l),
+opts = []unit.Option{
+	unit.DB(db),
+	unit.DataMappers(m),
+	unit.Logger(l),
 }
 uniter := work.NewUniter(opts...)
 
 // create the unit.
-unit, err := uniter.Unit()
+u, err := uniter.Unit()
 ```
 
 ## Dependancy Information
