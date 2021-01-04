@@ -19,144 +19,47 @@ that handles changes when they happen.
 
 ## Why use it?
 
-There are a bundle of benefits you get by using work units:
-
 - easier management of changes to your entities.
-- rollback of changes when chaos ensues.
+- automatic rollback of changes when chaos ensues.
 - centralization of save and rollback functionality.
 - reduced overhead when applying changes.
 - decoupling of code triggering changes from code that persists the changes.
-- shorter transactions for SQL datastores.
+- production-ready logs and metrics.
 
-## How to use it?
+For SQL datastores, also enjoy:
 
-The following assumes your application has a variable (`sdm`) of a type that
-satisfies [`work.SQLDataMapper`][sql-data-mapper-doc], a variable (`dm`) of
-a type that satisfies [`work.DataMapper`][data-mapper-doc], and a variable (`db`)
-of type [`*sql.DB`][db-doc].
+- one transaction, one connection per unit.
+- three queries max.
+  - additions result in a single `INSERT`.
+  - alters result in a single `UPDATE`.
+  - removals result in a single `DELETE`.
+- shorter transaction times.
+  - transaction is opened only once the unit is ready to be saved.
+  - transaction only remains open as long as it takes for the unit to be saved.
 
-### Construction
+## Release information
 
-Starting with entities `Foo` and `Bar`,
-```go
-// type names.
-fType, bType :=
-	work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
-```
+### [4.0.0][]
 
-we can create SQL work units:
-```go
-mappers := map[work.TypeName]work.SQLDataMapper {
-	fType: sdm,
-	bType: sdm,
-}
+- Introduce `unit` package to alias all types.
+- API revamp. Using `work` has never been easier!
 
-unit, err := work.NewSQLUnit(mappers, db)
-if err != nil {
-	panic(err)
-}
-```
+### [3.2.0][v3.2.0]
 
-or we can create "best effort" units:
-```go
-mappers := map[work.TypeName]work.DataMapper {
-	fType: dm,
-	bType: dm,
-}
+- Introduce [lifecycle actions][actions-pr].
+- Introduce [concurrency support][concurrency-pr].
 
-unit, err := work.NewBestEffortUnit(mappers)
-if err != nil {
-	panic(err)
-}
-```
+### [3.0.0][v3.0.0]
 
-### Adding
-When creating new entities, use [`Add`][unit-doc]:
-```go
-additions := []interface{}{Foo{}, Bar{}}
-unit.Add(additions...)
-```
+- Introduce support for Go modules.
 
-### Updating
-When modifying existing entities, use [`Alter`][unit-doc]:
-```go
-updates := []interface{}{Foo{}, Bar{}}
-unit.Alter(updates...)
-```
+### 2.x.x
 
-### Removing
-When removing existing entities, use [`Remove`][unit-doc]:
-```go
-removals := []interface{}{Foo{}, Bar{}}
-unit.Remove(removals...)
-```
+- NO LONGER SUPPORTED.
 
-### Registering 
-When retrieving existing entities, track their intial state using
-[`Register`][unit-doc]:
-```go
-fetched := []interface{}{Foo{}, Bar{}}
-unit.Register(fetched...)
-```
+### 1.x.x
 
-### Saving
-When you are ready to commit your work unit, use [`Save`][unit-doc]:
-```go
-if err := unit.Save(); err != nil {
-	panic(err)
-}
-```
-
-### Logging
-We use [`zap`][zap] as our logging library of choice. To leverage the logs
-emitted from the work units, utilize the [`work.UnitLogger`][unit-logger-doc]
-option with an instance of [`*zap.Logger`][logger-doc] upon creation:
-```go
-l, _ := zap.NewDevelopment()
-
-// create an SQL unit with logging.
-unit, err := work.NewSQLUnit(mappers, db, work.UnitLogger(l))
-if err != nil {
-	panic(err)
-}
-```
-
-### Metrics
-For emitting metrics, we use [`tally`][tally]. To utilize the metrics emitted
-from the work units, leverage the [`work.UnitScope`][unit-scope-doc] option
-with a [`tally.Scope`][scope-doc] upon creation. Assuming we have a
-scope `s`, it would look like so:
-```go
-unit, err := work.NewBestEffortUnit(mappers, work.UnitScope(s))
-if err != nil {
-	panic(err)
-}
-```
-
-#### Emitted Metrics
-
-| Name                             | Type    | Description                                      |
-| -------------------------------- | ------- | ------------------------------------------------ |
-| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.        |
-| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.       |
-| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.    |
-| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.  |
-| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit. |
-
-### Uniters
-In most circumstances, an application has many aspects that result in the
-creation of a work unit. To tackle that challenge, we recommend using
-[`work.Uniter`][uniter-doc] to create instances of [`work.Unit`][unit-doc],
-like so:
-```go
-uniter := work.NewSQLUniter(mappers, db)
-
-// create the unit.
-unit, err := uniter.Unit()
-if err != nil {
-	panic(err)
-}
-```
+- NO LONGER SUPPORTED.
 
 ## Dependancy Information
 
@@ -187,17 +90,6 @@ Please check out our [code of conduct][code-of-conduct] to get up to speed
 how we do things.
 
 [uow]: https://martinfowler.com/eaaCatalog/unitOfWork.html
-[sql-data-mapper-doc]: https://godoc.org/github.com/freerware/work#SQLDataMapper
-[data-mapper-doc]: https://godoc.org/github.com/freerware/work#DataMapper
-[db-doc]: https://golang.org/pkg/database/sql/#DB
-[unit-doc]: https://godoc.org/github.com/freerware/work#Unit
-[zap]: https://github.com/uber-go/zap
-[tally]: https://github.com/uber-go/tally
-[logger-doc]: https://godoc.org/go.uber.org/zap#Logger
-[scope-doc]: https://godoc.org/github.com/uber-go/tally#Scope
-[uniter-doc]: https://godoc.org/github.com/freerware/work#Uniter
-[unit-logger-doc]: https://godoc.org/github.com/freerware/work#pkg-variables
-[unit-scope-doc]: https://godoc.org/github.com/freerware/work#pkg-variables
 [modules-doc]: https://golang.org/doc/go1.11#modules
 [modules-wiki]: https://github.com/golang/go/wiki/Modules#releasing-modules-v2-or-higher
 [modules-release]: https://github.com/freerware/work/releases/tag/v3.0.0
@@ -219,3 +111,9 @@ how we do things.
 [release-img]: https://img.shields.io/github/tag/freerware/work.svg?label=version
 [blog]: https://medium.com/@freerjm/work-units-ec2da48cf574
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
+[v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
+[v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
+
+Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
+`3.x.x+` to receive the latest and greatest features, such as
+[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
