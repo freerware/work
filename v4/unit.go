@@ -21,6 +21,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/avast/retry-go"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
@@ -101,16 +102,22 @@ func options(options []UnitOption) UnitOptions {
 
 func NewUnit(opts ...UnitOption) (Unit, error) {
 	options := options(opts)
+	retryOptions := []retry.Option{
+		retry.Attempts(uint(option.RetryAttempts)),
+		retry.Delay(option.RetryDelay),
+		retry.DelayType(option.RetryType.convert()),
+	}
 	u := unit{
-		additions:   make(map[TypeName][]interface{}),
-		alterations: make(map[TypeName][]interface{}),
-		removals:    make(map[TypeName][]interface{}),
-		registered:  make(map[TypeName][]interface{}),
-		logger:      options.Logger,
-		scope:       options.Scope.SubScope("unit"),
-		actions:     options.Actions,
-		db:          options.DB,
-		mappers:     options.DataMappers,
+		additions:    make(map[TypeName][]interface{}),
+		alterations:  make(map[TypeName][]interface{}),
+		removals:     make(map[TypeName][]interface{}),
+		registered:   make(map[TypeName][]interface{}),
+		logger:       options.Logger,
+		scope:        options.Scope.SubScope("unit"),
+		actions:      options.Actions,
+		db:           options.DB,
+		mappers:      options.DataMappers,
+		retryOptions: retryOptions,
 	}
 	if len(u.mappers) == 0 {
 		return nil, ErrNoDataMapper

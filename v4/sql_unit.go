@@ -130,7 +130,13 @@ func (u *sqlUnit) Save(ctx context.Context) (err error) {
 	}()
 
 	//start transaction.
-	tx, err := u.db.BeginTx(ctx, nil)
+	var tx *sql.Tx
+	err = retry.Do(func() error {
+		var retryErr error
+		if tx, retryErr = u.db.BeginTx(ctx, nil); retryErr != nil {
+			return retryErr
+		}
+	}, retry.Context(ctx), u.retryOptions...)
 	mCtx := MapperContext{Tx: tx}
 	if err != nil {
 		// consider a failure to begin transaction as successful rollback,

@@ -16,7 +16,9 @@ package work
 
 import (
 	"database/sql"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
@@ -30,10 +32,37 @@ type UnitOptions struct {
 	DisableDefaultLoggingActions bool
 	DataMappers                  map[TypeName]DataMapper
 	DB                           *sql.DB
+	RetryAttempts                int
+	RetryDelay                   *time.Duration
+	RetryType                    RetryType
 }
 
 // UnitOption applies an option to the provided configuration.
 type UnitOption func(*UnitOptions)
+
+// RetryType represents the type of retry to perform.
+type RetryType int
+
+func (t RetryType) convert() retry.DelayTypeFunc {
+	types := map[RetryType]retry.DelayTypeFunc{
+		RetryTypeFixed:   retry.FixedDelay,
+		RetryTypeBackoff: retry.BackOffDelay,
+		RetryTypeRandom:  retry.RandomDelay,
+	}
+	if converted, ok := types[t]; ok {
+		return converted
+	}
+	return retry.FixedDelay
+}
+
+const (
+	// Fixed represents a retry type that maintains a constaint delay between retry iterations.
+	RetryTypeFixed = iota
+	// BackOff represents a retry type that increases delay between retry iterations.
+	RetryTypeBackOff
+	// Random represents a retry type that utilizes a random delay between retry iterations.
+	RetryTypeRandom
+)
 
 var (
 	// UnitDB specifies the option to provide the database for the work unit.
@@ -241,6 +270,30 @@ var (
 	DisableDefaultLoggingActions = func() UnitOption {
 		return func(o *UnitOptions) {
 			o.DisableDefaultLoggingActions = true
+		}
+	}
+
+	// UnitRetryAttempts defines the number of retry attempts to perform.
+	UnitRetryAttempts = func(attempts int) UnitOption {
+		if attempts < 0 {
+			attempts = 0
+		}
+		return func(o *UnitOptions) {
+			o.RetryAttempts = attempts
+		}
+	}
+
+	// UnitRetryDelay defines the delay to utilize during retries.
+	UnitRetryDelay = func(delay time.Duration) UnitOption {
+		return func(o *UnitOptions) {
+			o.RetryDelay = delay
+		}
+	}
+
+	// UnitRetryType defines the type of retry to perform.
+	UnitRetryType = func(retryType RetryType) UnitOption {
+		return func(o *UnitOptions) {
+			o.RetryType = retryType
 		}
 	}
 )
