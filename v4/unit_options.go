@@ -46,7 +46,7 @@ type RetryType int
 func (t RetryType) convert() retry.DelayTypeFunc {
 	types := map[RetryType]retry.DelayTypeFunc{
 		RetryTypeFixed:   retry.FixedDelay,
-		RetryTypeBackoff: retry.BackOffDelay,
+		RetryTypeBackOff: retry.BackOffDelay,
 		RetryTypeRandom:  retry.RandomDelay,
 	}
 	if converted, ok := types[t]; ok {
@@ -286,7 +286,7 @@ var (
 	// UnitRetryDelay defines the delay to utilize during retries.
 	UnitRetryDelay = func(delay time.Duration) UnitOption {
 		return func(o *UnitOptions) {
-			o.RetryDelay = delay
+			o.RetryDelay = &delay
 		}
 	}
 
