@@ -114,7 +114,7 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
 			options.Logger.Warn(
-				"attempting retry",
+				"attempted retry",
 				zap.Int("attempt", int(attempt+1)),
 				zap.Error(err),
 			)

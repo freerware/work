@@ -185,6 +185,9 @@ func (u *sqlUnit) Save(ctx context.Context) (err error) {
 	stop := u.scope.Timer(save).Start().Stop
 	defer func() {
 		stop()
+		if r := recover(); r != nil {
+			panic(r)
+		}
 		if err == nil {
 			u.scope.Counter(saveSuccess).Inc(1)
 			u.executeActions(UnitActionTypeAfterSave)

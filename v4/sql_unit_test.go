@@ -143,7 +143,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				}
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -155,7 +157,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				}
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
@@ -172,8 +176,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
@@ -186,8 +192,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
@@ -206,8 +214,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
@@ -220,8 +230,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
@@ -240,10 +252,12 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
@@ -256,10 +270,12 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
@@ -278,10 +294,12 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
@@ -294,10 +312,12 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
@@ -316,12 +336,14 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
@@ -334,12 +356,14 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
@@ -358,12 +382,14 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
@@ -376,12 +402,14 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
@@ -484,13 +512,15 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -502,13 +532,15 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
