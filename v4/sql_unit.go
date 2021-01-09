@@ -116,8 +116,6 @@ func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err err
 }
 
 func (u *sqlUnit) save(ctx context.Context) (err error) {
-	u.retryOptions = append(u.retryOptions, retry.Context(ctx))
-
 	//start transaction.
 	tx, err := u.db.BeginTx(ctx, nil)
 	mCtx := MapperContext{Tx: tx}
@@ -194,6 +192,7 @@ func (u *sqlUnit) Save(ctx context.Context) (err error) {
 		}
 	}()
 
+	u.retryOptions = append(u.retryOptions, retry.Context(ctx))
 	err = retry.Do(func() error { return u.save(ctx) }, u.retryOptions...)
 	return
 }
