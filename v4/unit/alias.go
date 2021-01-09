@@ -115,6 +115,12 @@ var (
 	DefaultLoggingActions = work.UnitDefaultLoggingActions
 	// DisableDefaultLoggingActions disables the default logging actions.
 	DisableDefaultLoggingActions = work.DisableDefaultLoggingActions
+	// RetryAttempts defines the number of retry attempts to perform.
+	RetryAttempts = work.UnitRetryAttempts
+	// RetryDelay defines the delay to utilize during retries.
+	RetryDelay = work.UnitRetryDelay
+	// RetryType defines the type of retry to perform.
+	RetryType = work.UnitRetryType
 )
 
 /* Actions. */

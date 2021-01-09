@@ -57,6 +57,8 @@ type BestEffortUnitTestSuite struct {
 	// suite state.
 	isSetup    bool
 	isTornDown bool
+
+	retryCount int
 }
 
 func TestBestEffortUnitTestSuite(t *testing.T) {
@@ -103,12 +105,14 @@ func (s *BestEffortUnitTestSuite) Setup() {
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
+	s.retryCount = 2
 	s.scope = ts
 	var err error
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
 		work.UnitLogger(l),
 		work.UnitScope(ts),
+		work.UnitRetryAttempts(s.retryCount),
 	}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
