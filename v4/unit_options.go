@@ -33,7 +33,7 @@ type UnitOptions struct {
 	DataMappers                  map[TypeName]DataMapper
 	DB                           *sql.DB
 	RetryAttempts                int
-	RetryDelay                   *time.Duration
+	RetryDelay                   time.Duration
 	RetryType                    RetryType
 }
 
@@ -286,7 +286,7 @@ var (
 	// UnitRetryDelay defines the delay to utilize during retries.
 	UnitRetryDelay = func(delay time.Duration) UnitOption {
 		return func(o *UnitOptions) {
-			o.RetryDelay = &delay
+			o.RetryDelay = delay
 		}
 	}
 
