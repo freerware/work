@@ -424,22 +424,25 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				for i := 0; i < s.retryCount; i++ {
+					// arrange - successfully apply updates.
+					applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+					applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
 
-				// arrange - rollback invocations.
-				s.mappers[fooType].EXPECT().
-					Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), registers[1]).Return(nil).Times(s.retryCount)
+					// arrange - successfully roll back updates.
+					s.mappers[fooType].EXPECT().
+						Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
+					s.mappers[barType].EXPECT().
+						Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+
+					// arrange - encounter delete error.
+					applyDelete := s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+					// arrange - encounter error when rolling back inserts.
+					s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).After(applyDelete)
+				}
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa; ouch"),
@@ -452,22 +455,25 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				for i := 0; i < s.retryCount; i++ {
+					// arrange - successfully apply updates.
+					applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+					applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
 
-				// arrange - rollback invocations.
-				s.mappers[fooType].EXPECT().
-					Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), registers[1]).Return(nil).Times(s.retryCount)
+					// arrange - successfully roll back updates.
+					s.mappers[fooType].EXPECT().
+						Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
+					s.mappers[barType].EXPECT().
+						Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+
+					// arrange - encounter delete error.
+					applyDelete := s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+					// arrange - encounter error when rolling back inserts.
+					s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).After(applyDelete)
+				}
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa; ouch"),
@@ -486,20 +492,33 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].
-					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 
-				// arrange - rollback invocations.
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				// arrange - successfully apply updates.
+				applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+				// arrange - successfully roll back updates.
 				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil).Times(s.retryCount)
+					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
 				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), registers[1]).Return(nil).Times(s.retryCount)
+					Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+
+				// arrange - encounter delete panic.
+				applyDelete := s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				)
+
+				// arrange - successfully roll back inserts.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(nil).After(applyDelete)
+				s.mappers[barType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[1]).Return(nil).After(applyDelete)
 			},
 			ctx:        context.Background(),
 			assertions: func() {},
@@ -512,20 +531,33 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].
-					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 
-				// arrange - rollback invocations.
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				// arrange - successfully apply updates.
+				applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+				// arrange - successfully roll back updates.
 				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), registers[0], registers[2]).Return(nil).Times(s.retryCount)
+					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
 				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), registers[1]).Return(nil).Times(s.retryCount)
+					Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+
+				// arrange - encounter delete panic.
+				applyDelete := s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				)
+
+				// arrange - successfully roll back inserts.
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[0]).Return(nil).After(applyDelete)
+				s.mappers[barType].EXPECT().
+					Delete(ctx, gomock.Any(), additions[1]).Return(nil).After(applyDelete)
 			},
 			ctx: context.Background(),
 			assertions: func() {
@@ -544,22 +576,26 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].
-					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
-					Do(func() { panic("whoa") })
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 
-				// arrange - rollback invocations.
+				// arrange - successfully apply updates.
+				applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+				// arrange - encounter update error during roll back.
 				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), registers[0], registers[1]).
-					Return(errors.New("whoa")).Times(s.retryCount)
+					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[1]}).
+					Return(errors.New("whoa")).After(applyFooUpdate)
+
+				// arrange - encounter delete panic.
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				)
 			},
 			ctx:        context.Background(),
 			assertions: func() {},
@@ -573,22 +609,26 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].
-					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
-					Do(func() { panic("whoa") })
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 
-				// arrange - rollback invocations.
+				// arrange - successfully apply updates.
+				applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+				// arrange - encounter update error during roll back.
 				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), registers[0], registers[1]).
-					Return(errors.New("whoa")).Times(s.retryCount)
+					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[1]}).
+					Return(errors.New("whoa")).After(applyFooUpdate)
+
+				// arrange - encounter delete panic.
+				s.mappers[fooType].
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
@@ -608,22 +648,29 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].
-					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
-					Do(func() { panic("whoa") })
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 
-				// arrange - rollback invocations.
+				// arrange - successfully apply updates.
+				applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+				// arrange - encounter update panic during roll back.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[1]}).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				).After(applyFooUpdate)
+
+				// arrange - encounter delete panic.
 				s.mappers[fooType].
-					EXPECT().Update(ctx, gomock.Any(), registers[0], registers[1]).
-					Do(func() { panic("whoa") })
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				)
 			},
 			ctx:        context.Background(),
 			assertions: func() {},
@@ -637,22 +684,29 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s.mappers[fooType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().
-					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
-				s.mappers[barType].EXPECT().
-					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].
-					EXPECT().Delete(ctx, gomock.Any(), removals[0]).
-					Do(func() { panic("whoa") })
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 
-				// arrange - rollback invocations.
+				// arrange - successfully apply updates.
+				applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+				// arrange - encounter update panic during roll back.
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[1]}).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				).After(applyFooUpdate)
+
+				// arrange - encounter delete panic.
 				s.mappers[fooType].
-					EXPECT().Update(ctx, gomock.Any(), registers[0], registers[1]).
-					Do(func() { panic("whoa") })
+					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+						panic("whoa")
+					},
+				)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
