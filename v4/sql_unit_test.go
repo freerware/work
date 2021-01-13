@@ -590,6 +590,63 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
 		},
+		{
+			name:      "Success_RetrySucceeds",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s._db.ExpectBegin()
+				s._db.ExpectCommit()
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(2)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(2)
+				deletionFailure := s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(nil).After(deletionFailure)
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+		},
+		{
+			name:      "Success_RetrySucceeds_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s._db.ExpectBegin()
+				s._db.ExpectCommit()
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(2)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(2)
+				deletionFailure := s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(nil).After(deletionFailure)
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
 	}
 }
 

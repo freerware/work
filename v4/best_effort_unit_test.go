@@ -766,6 +766,105 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
 		},
+		{
+			name:      "Success_RetrySucceeds",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				for i := 0; i < 2; i++ {
+					// arrange - successfully apply inserts.
+					s.mappers[fooType].EXPECT().
+						Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+					s.mappers[barType].EXPECT().
+						Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+
+					// arrange - successfully apply updates.
+					applyFooUpdate := s.mappers[fooType].EXPECT().
+						Update(ctx, gomock.Any(), alters[0]).Return(nil)
+					applyBarUpdate := s.mappers[barType].EXPECT().
+						Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+					if i != 1 {
+						// arrange - successfully roll back inserts.
+						s.mappers[fooType].EXPECT().
+							Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+						s.mappers[barType].EXPECT().
+							Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+
+						// arrange - successfully roll back updates.
+						s.mappers[fooType].EXPECT().
+							Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
+						s.mappers[barType].EXPECT().
+							Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+
+						// arrange - encounter transient delete error.
+						deletionFailure := s.mappers[fooType].EXPECT().
+							Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+						// arrange - successfully apply deletes on retry.
+						s.mappers[fooType].EXPECT().
+							Delete(ctx, gomock.Any(), removals[0]).Return(nil).After(deletionFailure)
+					}
+				}
+
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+		},
+		{
+			name:      "Success_RetrySucceeds_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			registers: []interface{}{foos[1], bars[1], foos[3]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				for i := 0; i < 2; i++ {
+					// arrange - successfully apply inserts.
+					s.mappers[fooType].EXPECT().
+						Insert(ctx, gomock.Any(), additions[0]).Return(nil)
+					s.mappers[barType].EXPECT().
+						Insert(ctx, gomock.Any(), additions[1]).Return(nil)
+
+					// arrange - successfully apply updates.
+					applyFooUpdate := s.mappers[fooType].EXPECT().
+						Update(ctx, gomock.Any(), alters[0]).Return(nil)
+					applyBarUpdate := s.mappers[barType].EXPECT().
+						Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+					if i != 1 {
+						// arrange - successfully roll back inserts.
+						s.mappers[fooType].EXPECT().
+							Delete(ctx, gomock.Any(), additions[0]).Return(nil)
+						s.mappers[barType].EXPECT().
+							Delete(ctx, gomock.Any(), additions[1]).Return(nil)
+
+						// arrange - successfully roll back updates.
+						s.mappers[fooType].EXPECT().
+							Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
+						s.mappers[barType].EXPECT().
+							Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+
+						// arrange - encounter transient delete error.
+						deletionFailure := s.mappers[fooType].EXPECT().
+							Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+
+						// arrange - successfully apply deletes on retry.
+						s.mappers[fooType].EXPECT().
+							Delete(ctx, gomock.Any(), removals[0]).Return(nil).After(deletionFailure)
+					}
+				}
+
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
 	}
 }
 
