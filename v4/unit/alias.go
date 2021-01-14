@@ -119,6 +119,9 @@ var (
 	RetryAttempts = work.UnitRetryAttempts
 	// RetryDelay defines the delay to utilize during retries.
 	RetryDelay = work.UnitRetryDelay
+	// RetryMaximumJitter defines the maximum jitter to utilize during
+	// retries that utilize random delay times.
+	RetryMaximumJitter = work.UnitRetryMaximumJitter
 	// RetryType defines the type of retry to perform.
 	RetryType = work.UnitRetryType
 )

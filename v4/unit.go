@@ -88,12 +88,13 @@ type unit struct {
 func options(options []UnitOption) UnitOptions {
 	// set defaults.
 	o := UnitOptions{
-		Logger:        zap.NewNop(),
-		Scope:         tally.NoopScope,
-		Actions:       make(map[UnitActionType][]UnitAction),
-		RetryAttempts: 3,
-		RetryType:     RetryTypeFixed,
-		RetryDelay:    50 * time.Millisecond,
+		Logger:             zap.NewNop(),
+		Scope:              tally.NoopScope,
+		Actions:            make(map[UnitActionType][]UnitAction),
+		RetryAttempts:      3,
+		RetryType:          RetryTypeFixed,
+		RetryDelay:         50 * time.Millisecond,
+		RetryMaximumJitter: 50 * time.Millisecond,
 	}
 	// apply options.
 	for _, opt := range options {

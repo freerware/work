@@ -34,6 +34,7 @@ type UnitOptions struct {
 	DB                           *sql.DB
 	RetryAttempts                int
 	RetryDelay                   time.Duration
+	RetryMaximumJitter           time.Duration
 	RetryType                    RetryType
 }
 
@@ -287,6 +288,14 @@ var (
 	UnitRetryDelay = func(delay time.Duration) UnitOption {
 		return func(o *UnitOptions) {
 			o.RetryDelay = delay
+		}
+	}
+
+	// UnitRetryMaximumJitter defines the maximum jitter to utilize during
+	// retries that utilize random delay times.
+	UnitRetryMaximumJitter = func(jitter time.Duration) UnitOption {
+		return func(o *UnitOptions) {
+			o.RetryMaximumJitter = jitter
 		}
 	}
 
