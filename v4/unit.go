@@ -20,7 +20,9 @@ import (
 	"database/sql"
 	"errors"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
@@ -80,14 +82,19 @@ type unit struct {
 	mutex           sync.RWMutex
 	db              *sql.DB
 	mappers         map[TypeName]DataMapper
+	retryOptions    []retry.Option
 }
 
 func options(options []UnitOption) UnitOptions {
 	// set defaults.
 	o := UnitOptions{
-		Logger:  zap.NewNop(),
-		Scope:   tally.NoopScope,
-		Actions: make(map[UnitActionType][]UnitAction),
+		Logger:             zap.NewNop(),
+		Scope:              tally.NoopScope,
+		Actions:            make(map[UnitActionType][]UnitAction),
+		RetryAttempts:      3,
+		RetryType:          RetryTypeFixed,
+		RetryDelay:         50 * time.Millisecond,
+		RetryMaximumJitter: 50 * time.Millisecond,
 	}
 	// apply options.
 	for _, opt := range options {
@@ -101,16 +108,30 @@ func options(options []UnitOption) UnitOptions {
 
 func NewUnit(opts ...UnitOption) (Unit, error) {
 	options := options(opts)
+	retryOptions := []retry.Option{
+		retry.Attempts(uint(options.RetryAttempts)),
+		retry.Delay(options.RetryDelay),
+		retry.DelayType(options.RetryType.convert()),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(attempt uint, err error) {
+			options.Logger.Warn(
+				"attempted retry",
+				zap.Int("attempt", int(attempt+1)),
+				zap.Error(err),
+			)
+		}),
+	}
 	u := unit{
-		additions:   make(map[TypeName][]interface{}),
-		alterations: make(map[TypeName][]interface{}),
-		removals:    make(map[TypeName][]interface{}),
-		registered:  make(map[TypeName][]interface{}),
-		logger:      options.Logger,
-		scope:       options.Scope.SubScope("unit"),
-		actions:     options.Actions,
-		db:          options.DB,
-		mappers:     options.DataMappers,
+		additions:    make(map[TypeName][]interface{}),
+		alterations:  make(map[TypeName][]interface{}),
+		removals:     make(map[TypeName][]interface{}),
+		registered:   make(map[TypeName][]interface{}),
+		logger:       options.Logger,
+		scope:        options.Scope.SubScope("unit"),
+		actions:      options.Actions,
+		db:           options.DB,
+		mappers:      options.DataMappers,
+		retryOptions: retryOptions,
 	}
 	if len(u.mappers) == 0 {
 		return nil, ErrNoDataMapper

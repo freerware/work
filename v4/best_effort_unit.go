@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/avast/retry-go"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -207,6 +208,42 @@ func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (
 	return
 }
 
+func (u *bestEffortUnit) resetSuccesses() {
+	u.successfulInserts = make(map[TypeName][]interface{})
+	u.successfulUpdates = make(map[TypeName][]interface{})
+	u.successfulDeletes = make(map[TypeName][]interface{})
+}
+
+func (u *bestEffortUnit) resetSuccessCounts() {
+	u.successfulInsertCount = 0
+	u.successfulUpdateCount = 0
+	u.successfulDeleteCount = 0
+}
+
+func (u *bestEffortUnit) save(ctx context.Context) (err error) {
+	//insert newly added entities.
+	u.executeActions(UnitActionTypeBeforeInserts)
+	if err = u.applyInserts(ctx, MapperContext{}); err != nil {
+		return
+	}
+	u.executeActions(UnitActionTypeAfterInserts)
+
+	//update altered entities.
+	u.executeActions(UnitActionTypeBeforeUpdates)
+	if err = u.applyUpdates(ctx, MapperContext{}); err != nil {
+		return
+	}
+	u.executeActions(UnitActionTypeAfterUpdates)
+
+	//delete removed entities.
+	u.executeActions(UnitActionTypeBeforeDeletes)
+	if err = u.applyDeletes(ctx, MapperContext{}); err != nil {
+		return
+	}
+	u.executeActions(UnitActionTypeAfterDeletes)
+	return
+}
+
 // Save commits the new additions, modifications, and removals
 // within the work unit to a persistent store.
 func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
@@ -235,25 +272,17 @@ func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
 		}
 	}()
 
-	//insert newly added entities.
-	u.executeActions(UnitActionTypeBeforeInserts)
-	if err = u.applyInserts(ctx, MapperContext{}); err != nil {
-		return
-	}
-	u.executeActions(UnitActionTypeAfterInserts)
-
-	//update altered entities.
-	u.executeActions(UnitActionTypeBeforeUpdates)
-	if err = u.applyUpdates(ctx, MapperContext{}); err != nil {
-		return
-	}
-	u.executeActions(UnitActionTypeAfterUpdates)
-
-	//delete removed entities.
-	u.executeActions(UnitActionTypeBeforeDeletes)
-	if err = u.applyDeletes(ctx, MapperContext{}); err != nil {
-		return
-	}
-	u.executeActions(UnitActionTypeAfterDeletes)
+	onRetry :=
+		retry.OnRetry(func(attempt uint, err error) {
+			u.resetSuccesses()
+			u.resetSuccessCounts()
+			u.logger.Warn(
+				"attempted retry",
+				zap.Int("attempt", int(attempt+1)),
+				zap.Error(err),
+			)
+		})
+	u.retryOptions = append(u.retryOptions, retry.Context(ctx), onRetry)
+	err = retry.Do(func() error { return u.save(ctx) }, u.retryOptions...)
 	return
 }

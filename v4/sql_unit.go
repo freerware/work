@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/avast/retry-go"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -114,21 +115,7 @@ func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err err
 	return
 }
 
-// Save commits the new additions, modifications, and removals
-// within the work unit to an SQL store.
-func (u *sqlUnit) Save(ctx context.Context) (err error) {
-	u.executeActions(UnitActionTypeBeforeSave)
-
-	//setup timer.
-	stop := u.scope.Timer(save).Start().Stop
-	defer func() {
-		stop()
-		if err == nil {
-			u.scope.Counter(saveSuccess).Inc(1)
-			u.executeActions(UnitActionTypeAfterSave)
-		}
-	}()
-
+func (u *sqlUnit) save(ctx context.Context) (err error) {
 	//start transaction.
 	tx, err := u.db.BeginTx(ctx, nil)
 	mCtx := MapperContext{Tx: tx}
@@ -184,5 +171,28 @@ func (u *sqlUnit) Save(ctx context.Context) (err error) {
 		u.logger.Error(err.Error())
 		return
 	}
+	return
+}
+
+// Save commits the new additions, modifications, and removals
+// within the work unit to an SQL store.
+func (u *sqlUnit) Save(ctx context.Context) (err error) {
+	u.executeActions(UnitActionTypeBeforeSave)
+
+	//setup timer.
+	stop := u.scope.Timer(save).Start().Stop
+	defer func() {
+		stop()
+		if r := recover(); r != nil {
+			panic(r)
+		}
+		if err == nil {
+			u.scope.Counter(saveSuccess).Inc(1)
+			u.executeActions(UnitActionTypeAfterSave)
+		}
+	}()
+
+	u.retryOptions = append(u.retryOptions, retry.Context(ctx))
+	err = retry.Do(func() error { return u.save(ctx) }, u.retryOptions...)
 	return
 }
