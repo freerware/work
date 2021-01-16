@@ -40,7 +40,7 @@ For SQL datastores, also enjoy:
 
 ## Release information
 
-### 4.0.0-beta
+### [4.0.0-beta][v4.0.0-beta]
 
 - Introduce `unit` package for aliasing.
   - Reduces API footprint.
@@ -122,6 +122,7 @@ how we do things.
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
+[v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
 
 Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
 `3.x.x+` to receive the latest and greatest features, such as
