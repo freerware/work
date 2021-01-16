@@ -70,6 +70,10 @@ For SQL datastores, also enjoy:
 
 - NO LONGER SUPPORTED.
 
+> Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
+`3.x.x+` to receive the latest and greatest features, such as
+[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
+
 ## Dependancy Information
 
 As of [`v3.0.0`][modules-release], the project utilizes [modules][modules-doc].
@@ -77,12 +81,6 @@ Prior to `v3.0.0`, the project utilized [`dep`][dep] for dependency management.
 
 In order to transition to modules gracefully, we adhered to the
 [best practice recommendations][modules-wiki] authored by the Golang team.
-
-## Release information
-
-Versions `1.x.x` and `2.x.x` are currently in maintenance mode. Please upgrade to `3.x.x` to
-receive the latest and greatest features, such as [lifecycle actions][actions-pr] and 
-[concurrency support][concurrency-pr]!
 
 ## Contribute
 
@@ -123,7 +121,3 @@ how we do things.
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
 [v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
-
-Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
-`3.x.x+` to receive the latest and greatest features, such as
-[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
