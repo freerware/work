@@ -80,9 +80,9 @@ In order to transition to modules gracefully, we adhered to the
 
 ## Release information
 
-Versions `1.x.x` and `2.x.x` are currently in maintenance mode. Please upgrade to `3.x.x` to
-receive the latest and greatest features, such as [lifecycle actions][actions-pr] and 
-[concurrency support][concurrency-pr]!
+Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
+`3.x.x+` to receive the latest and greatest features, such as
+[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
 
 ## Contribute
 
@@ -123,7 +123,3 @@ how we do things.
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
 [v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
-
-Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
-`3.x.x+` to receive the latest and greatest features, such as
-[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
