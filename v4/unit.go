@@ -92,7 +92,7 @@ func options(options []UnitOption) UnitOptions {
 		Scope:              tally.NoopScope,
 		Actions:            make(map[UnitActionType][]UnitAction),
 		RetryAttempts:      3,
-		RetryType:          RetryTypeFixed,
+		RetryType:          UnitRetryDelayTypeFixed,
 		RetryDelay:         50 * time.Millisecond,
 		RetryMaximumJitter: 50 * time.Millisecond,
 	}
