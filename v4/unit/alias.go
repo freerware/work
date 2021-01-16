@@ -59,6 +59,9 @@ type Option = work.UnitOption
 // Options represents the configuration options for the work unit.
 type Options = work.UnitOptions
 
+// RetryDelayType represents the type of retry delay to perform.
+type RetryDelayType = work.UnitRetryDelayType
+
 var (
 	// DB specifies the option to provide the database for the work unit.
 	DB = work.UnitDB

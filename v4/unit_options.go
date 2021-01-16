@@ -35,20 +35,20 @@ type UnitOptions struct {
 	RetryAttempts                int
 	RetryDelay                   time.Duration
 	RetryMaximumJitter           time.Duration
-	RetryType                    RetryType
+	RetryType                    UnitRetryDelayType
 }
 
 // UnitOption applies an option to the provided configuration.
 type UnitOption func(*UnitOptions)
 
-// RetryType represents the type of retry to perform.
-type RetryType int
+// UnitRetryDelayType represents the type of retry delay to perform.
+type UnitRetryDelayType int
 
-func (t RetryType) convert() retry.DelayTypeFunc {
-	types := map[RetryType]retry.DelayTypeFunc{
-		RetryTypeFixed:   retry.FixedDelay,
-		RetryTypeBackOff: retry.BackOffDelay,
-		RetryTypeRandom:  retry.RandomDelay,
+func (t UnitRetryDelayType) convert() retry.DelayTypeFunc {
+	types := map[UnitRetryDelayType]retry.DelayTypeFunc{
+		UnitRetryDelayTypeFixed:   retry.FixedDelay,
+		UnitRetryDelayTypeBackOff: retry.BackOffDelay,
+		UnitRetryDelayTypeRandom:  retry.RandomDelay,
 	}
 	if converted, ok := types[t]; ok {
 		return converted
@@ -58,11 +58,11 @@ func (t RetryType) convert() retry.DelayTypeFunc {
 
 const (
 	// Fixed represents a retry type that maintains a constaint delay between retry iterations.
-	RetryTypeFixed = iota
+	UnitRetryDelayTypeFixed = iota
 	// BackOff represents a retry type that increases delay between retry iterations.
-	RetryTypeBackOff
+	UnitRetryDelayTypeBackOff
 	// Random represents a retry type that utilizes a random delay between retry iterations.
-	RetryTypeRandom
+	UnitRetryDelayTypeRandom
 )
 
 var (
@@ -300,7 +300,7 @@ var (
 	}
 
 	// UnitRetryType defines the type of retry to perform.
-	UnitRetryType = func(retryType RetryType) UnitOption {
+	UnitRetryType = func(retryType UnitRetryDelayType) UnitOption {
 		return func(o *UnitOptions) {
 			o.RetryType = retryType
 		}
