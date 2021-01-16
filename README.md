@@ -25,24 +25,33 @@ that handles changes when they happen.
 - reduced overhead when applying changes.
 - decoupling of code triggering changes from code that persists the changes.
 - production-ready logs and metrics.
+- works with your existing persistence layer.
+- automatic and configurable retries.
 
 For SQL datastores, also enjoy:
 
 - one transaction, one connection per unit.
-- three queries max.
-  - additions result in a single `INSERT`.
-  - alters result in a single `UPDATE`.
-  - removals result in a single `DELETE`.
+- consolidates persistence operations into three operations, regardless of
+  the amount of entity changes.
 - shorter transaction times.
   - transaction is opened only once the unit is ready to be saved.
   - transaction only remains open as long as it takes for the unit to be saved.
+- proper threading of `context.Context` with `database/sql`.
 
 ## Release information
 
-### [4.0.0][]
+### [4.0.0-beta][v4.0.0-beta]
 
-- Introduce `unit` package to alias all types.
-- API revamp. Using `work` has never been easier!
+- Introduce `unit` package for aliasing.
+  - Reduces API footprint.
+  - Often "flows" better.
+- Introduce retries and related configuration.
+- Reconsolidate data mappers abstractions into single `DataMapper` interface.
+- Introduce `MapperContext`.
+- Alter `Save` to be `context.Context` aware.
+- Refactor `work.NewUnit` to dynamically choose which type of work unit to
+  create based on provided options.
+- Reconsolidate uniter functionality.
 
 ### [3.2.0][v3.2.0]
 
@@ -113,6 +122,7 @@ how we do things.
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
+[v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
 
 Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
 `3.x.x+` to receive the latest and greatest features, such as
