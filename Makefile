@@ -35,3 +35,8 @@ mocks:
 	@mockgen -source=v3/sql_data_mapper.go -destination=v3/internal/mock/sql_data_mapper.go -package=mock -mock_names=SQLDataMapper=SQLDataMapper
 	@#v4
 	@mockgen -source=v4/data_mapper.go -destination=v4/internal/mock/data_mapper.go -package=mock -mock_names=DataMapper=DataMapper @echo done!
+
+benchmark: bins
+	@#v4
+	@cd ./v4 && GO111MODULE=on go test -run XXX -bench . && cd ..
+
