@@ -18,11 +18,11 @@ bins:
 test: bins
 	@echo testing...
 	@#v1
-	@GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=coverage.out github.com/freerware/work
+	@GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=work.coverprofile github.com/freerware/work
 	@#v3
-	@cd ./v3 && GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=coverage.out github.com/freerware/work/v3 && cd ..
+	@cd ./v3 && GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=work.coverprofile github.com/freerware/work/v3 && cd ..
 	@#v4
-	@cd ./v4 && GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=coverage.out github.com/freerware/work/v4 && cd ..
+	@cd ./v4 && GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=work.coverprofile github.com/freerware/work/v4 && cd ..
 	@echo done!
 
 mocks:
