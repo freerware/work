@@ -15,7 +15,25 @@
 
 package work_test
 
-import "context"
+import (
+	"context"
+
+	"github.com/freerware/work/v4/unit"
+)
+
+type NoOpDataMapper struct{}
+
+func (dm NoOpDataMapper) Insert(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+	return nil
+}
+
+func (dm NoOpDataMapper) Update(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+	return nil
+}
+
+func (dm NoOpDataMapper) Delete(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+	return nil
+}
 
 type Foo struct {
 	ID int
