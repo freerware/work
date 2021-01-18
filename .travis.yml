@@ -11,5 +11,7 @@ jobs:
         - go get github.com/mattn/goveralls
       script:
         - 'make test'
-        - 'gover'
-        - '$HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN'
+        - 'gover . coverage.txt'
+        - '$HOME/gopath/bin/goveralls -coverprofile=coverage.txt -service=travis-ci -repotoken $COVERALLS_TOKEN'
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)
