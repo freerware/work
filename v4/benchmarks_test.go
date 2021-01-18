@@ -16,6 +16,7 @@
 package work_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/freerware/work/v4/unit"
@@ -112,4 +113,38 @@ func BenchmarkRemove(b *testing.B) {
 		}
 		b.StopTimer()
 	}
+}
+
+func BenchmarkSave(b *testing.B) {
+	ctx := context.Background()
+	entities := setupEntities()
+	mappers := map[unit.TypeName]unit.DataMapper{
+		unit.TypeNameOf(Foo{}): NoOpDataMapper{},
+	}
+	b.StopTimer()
+	b.ResetTimer()
+	b.Run("BestEffort", func(b *testing.B) {
+		b.StopTimer()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			unit, err := unit.New(unit.DataMappers(mappers))
+			if err != nil {
+				b.FailNow()
+			}
+			if err = unit.Add(entities...); err != nil {
+				b.FailNow()
+			}
+			if err = unit.Alter(entities...); err != nil {
+				b.FailNow()
+			}
+			if err = unit.Remove(entities...); err != nil {
+				b.FailNow()
+			}
+			b.StartTimer()
+			if err = unit.Save(ctx); err != nil {
+				b.FailNow()
+			}
+			b.StopTimer()
+		}
+	})
 }
