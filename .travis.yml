@@ -8,10 +8,8 @@ jobs:
       install:
         - go get golang.org/x/tools/cmd/cover
         - go get github.com/modocache/gover
-        - go get github.com/mattn/goveralls
       script:
         - 'make test'
         - 'gover . coverage.txt'
       after_success:
-        - '$HOME/gopath/bin/goveralls -coverprofile=coverage.txt -service=travis-ci -repotoken $COVERALLS_TOKEN'
         - bash <(curl -s https://codecov.io/bash)
