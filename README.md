@@ -110,8 +110,8 @@ how we do things.
 [doc]: https://godoc.org/github.com/freerware/work
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
 [ci]: https://travis-ci.org/freerware/work
-[coverage-img]: https://coveralls.io/repos/github/freerware/work/badge.svg?branch=master
-[coverage]: https://coveralls.io/github/freerware/work?branch=master
+[coverage-img]: https://codecov.io/gh/freerware/work/branch/master/graph/badge.svg?token=W5YH9TPP3C
+[coverage]: https://codecov.io/gh/freerware/work
 [license]: https://opensource.org/licenses/Apache-2.0
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [release]: https://github.com/freerware/work/releases
