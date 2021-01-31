@@ -33,6 +33,7 @@ const (
 	saveSuccess     = "save.success"
 	save            = "save"
 	rollback        = "rollback"
+	retryAttempt    = "retry.attempt"
 )
 
 var (
@@ -103,6 +104,13 @@ func options(options []UnitOption) UnitOptions {
 	if !o.DisableDefaultLoggingActions {
 		UnitDefaultLoggingActions()(&o)
 	}
+	// prepare metrics scope.
+	o.Scope = o.Scope.SubScope("unit")
+	if o.DB != nil {
+		o.Scope = o.Scope.Tagged(sqlUnitTag)
+	} else {
+		o.Scope = o.Scope.Tagged(bestEffortUnitTag)
+	}
 	return o
 }
 
@@ -119,6 +127,7 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 				zap.Int("attempt", int(attempt+1)),
 				zap.Error(err),
 			)
+			options.Scope.Counter(retryAttempt).Inc(1)
 		}),
 	}
 	u := unit{
@@ -127,7 +136,7 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		removals:     make(map[TypeName][]interface{}),
 		registered:   make(map[TypeName][]interface{}),
 		logger:       options.Logger,
-		scope:        options.Scope.SubScope("unit"),
+		scope:        options.Scope,
 		actions:      options.Actions,
 		db:           options.DB,
 		mappers:      options.DataMappers,
@@ -137,10 +146,8 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		return nil, ErrNoDataMapper
 	}
 	if u.db != nil {
-		u.scope = u.scope.Tagged(sqlUnitTag)
 		return &sqlUnit{unit: u}, nil
 	}
-	u.scope = u.scope.Tagged(bestEffortUnitTag)
 	return &bestEffortUnit{
 		unit:              u,
 		successfulInserts: make(map[TypeName][]interface{}),

@@ -281,6 +281,7 @@ func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
 				zap.Int("attempt", int(attempt+1)),
 				zap.Error(err),
 			)
+			u.scope.Counter(retryAttempt).Inc(1)
 		})
 	u.retryOptions = append(u.retryOptions, retry.Context(ctx), onRetry)
 	err = retry.Do(func() error { return u.save(ctx) }, u.retryOptions...)
