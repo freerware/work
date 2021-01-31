@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package work
+package main
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/cactus/go-statsd-client/statsd"
+	"github.com/freerware/work/v4"
 	"github.com/uber-go/tally"
 	tstatsd "github.com/uber-go/tally/statsd"
 )
@@ -31,12 +32,12 @@ import (
 type demoDataMapper struct{}
 
 func (dm *demoDataMapper) simulateLatency() {
-	latency := time.Duration(rand.Intn(500)) * time.Millisecond
+	latency := time.Duration(rand.Intn(250)) * time.Millisecond
 	time.Sleep(latency)
 }
 
 func (dm *demoDataMapper) simulateOperation() (err error) {
-	isError := rand.Intn(5) == 5
+	isError := rand.Intn(5) == 4
 	if isError {
 		err = errors.New("oops")
 	}
@@ -48,15 +49,15 @@ func (dm *demoDataMapper) simulate() error {
 	return dm.simulateOperation()
 }
 
-func (dm *demoDataMapper) Insert(ctx context.Context, mCtx MapperContext, e ...interface{}) error {
+func (dm *demoDataMapper) Insert(ctx context.Context, mCtx work.MapperContext, e ...interface{}) error {
 	return dm.simulate()
 }
 
-func (dm *demoDataMapper) Update(ctx context.Context, mCtx MapperContext, e ...interface{}) error {
+func (dm *demoDataMapper) Update(ctx context.Context, mCtx work.MapperContext, e ...interface{}) error {
 	return dm.simulate()
 }
 
-func (dm *demoDataMapper) Delete(ctx context.Context, mCtx MapperContext, e ...interface{}) error {
+func (dm *demoDataMapper) Delete(ctx context.Context, mCtx work.MapperContext, e ...interface{}) error {
 	return dm.simulate()
 }
 
@@ -77,17 +78,17 @@ func setupScope() tally.Scope {
 	return scope
 }
 
-func setupDataMapper() map[TypeName]DataMapper {
+func setupDataMapper() map[work.TypeName]work.DataMapper {
 	dm := &demoDataMapper{}
-	return map[TypeName]DataMapper{
-		TypeNameOf(foo{}): dm,
+	return map[work.TypeName]work.DataMapper{
+		work.TypeNameOf(foo{}): dm,
 	}
 }
 
-func o() []UnitOption {
-	return []UnitOption{
-		UnitScope(setupScope()),
-		UnitDataMappers(setupDataMapper()),
+func o() []work.UnitOption {
+	return []work.UnitOption{
+		work.UnitScope(setupScope()),
+		work.UnitDataMappers(setupDataMapper()),
 	}
 }
 
@@ -98,8 +99,8 @@ type foo struct{}
 /* Demo */
 
 func main() {
-	for i := 0; i < 10000; i++ {
-		unit, err := NewUnit(o()...)
+	for i := 0; i < 100; i++ {
+		unit, err := work.NewUnit(o()...)
 		if err != nil {
 			panic(err)
 		}
