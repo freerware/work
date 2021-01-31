@@ -27,6 +27,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Metric scope name definitions.
 const (
 	rollbackSuccess = "rollback.success"
 	rollbackFailure = "rollback.failure"
@@ -34,6 +35,9 @@ const (
 	save            = "save"
 	rollback        = "rollback"
 	retryAttempt    = "retry.attempt"
+	insert          = "insert"
+	update          = "update"
+	delete          = "delete"
 )
 
 var (

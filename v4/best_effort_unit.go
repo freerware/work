@@ -268,6 +268,9 @@ func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
 		}
 		if err == nil {
 			u.scope.Counter(saveSuccess).Inc(1)
+			u.scope.Counter(insert).Inc(int64(u.additionCount))
+			u.scope.Counter(update).Inc(int64(u.alterationCount))
+			u.scope.Counter(delete).Inc(int64(u.removalCount))
 			u.executeActions(UnitActionTypeAfterSave)
 		}
 	}()
