@@ -58,6 +58,12 @@ type SQLUnitTestSuite struct {
 	rollbackSuccessScopeName         string
 	retryAttemptScopeName            string
 	retryAttemptScopeNameWithTags    string
+	insertScopeName                  string
+	insertScopeNameWithTags          string
+	updateScopeName                  string
+	updateScopeNameWithTags          string
+	deleteScopeName                  string
+	deleteScopeNameWithTags          string
 	tags                             string
 
 	// suite state.
@@ -90,6 +96,12 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.rollbackFailureScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackFailureScopeName, sep, s.tags)
 	s.retryAttemptScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.retry.attempt")
 	s.retryAttemptScopeNameWithTags = fmt.Sprintf("%s%s%s", s.retryAttemptScopeName, sep, s.tags)
+	s.insertScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.insert")
+	s.insertScopeNameWithTags = fmt.Sprintf("%s%s%s", s.insertScopeName, sep, s.tags)
+	s.updateScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.update")
+	s.updateScopeNameWithTags = fmt.Sprintf("%s%s%s", s.updateScopeName, sep, s.tags)
+	s.deleteScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.delete")
+	s.deleteScopeNameWithTags = fmt.Sprintf("%s%s%s", s.deleteScopeName, sep, s.tags)
 
 	// test entities.
 	foo := Foo{ID: 28}
@@ -596,8 +608,11 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.deleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
@@ -653,9 +668,12 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 3)
+				s.Len(s.scope.Snapshot().Counters(), 6)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.deleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
