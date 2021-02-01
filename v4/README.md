@@ -7,6 +7,10 @@
 [![Coverage Status][coverage-img]][coverage] [![Release][release-img]][release]
 [![License][license-img]][license] [![Blog][blog-img]][blog]
 
+## Demo
+
+`make demo` (requires `docker-compose`).
+
 ## How to use it?
 
 ### Construction
