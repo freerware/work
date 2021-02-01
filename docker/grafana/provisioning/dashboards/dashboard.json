@@ -66,7 +66,7 @@
       "targets": [
         {
           "refId": "A",
-          "target": "stats.demo.unit.save.success"
+          "target": "alias(stats.demo.unit.save.success, 'save_success')"
         }
       ],
       "thresholds": [],
@@ -271,7 +271,7 @@
       "targets": [
         {
           "refId": "A",
-          "target": "stats.demo.unit.rollback.success"
+          "target": "alias(stats.demo.unit.rollback.success, 'rollback_success')"
         }
       ],
       "thresholds": [],
@@ -476,7 +476,7 @@
       "targets": [
         {
           "refId": "A",
-          "target": "stats.demo.unit.retry.attempt"
+          "target": "alias(stats.demo.unit.retry.attempt, 'attempts')"
         }
       ],
       "thresholds": [],
@@ -570,17 +570,23 @@
         {
           "refCount": 0,
           "refId": "A",
-          "target": "stats.demo.unit.insert"
+          "target": "alias(stats.demo.unit.insert, 'insert')"
         },
         {
           "refCount": 0,
           "refId": "B",
-          "target": "stats.demo.unit.update"
+          "target": "alias(stats.demo.unit.update, 'update')"
         },
         {
           "refCount": 0,
           "refId": "C",
-          "target": "stats.demo.unit.delete"
+          "target": "alias(stats.demo.unit.delete, 'delete')"
+        },
+        {
+          "refCount": 0,
+          "refId": "D",
+          "target": "alias(sumSeries(stats.demo.unit.insert, stats.demo.unit.update, stats.demo.unit.delete), \"total\")",
+          "textEditor": true
         }
       ],
       "thresholds": [],
@@ -640,5 +646,5 @@
   "timezone": "",
   "title": "Unit Dashboard",
   "uid": "sLyborBGk",
-  "version": 2
+  "version": 3
 }
