@@ -149,8 +149,8 @@ u, err := uniter.Unit()
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
-[doc-img]: https://godoc.org/github.com/freerware/work?status.svg
-[doc]: https://godoc.org/github.com/freerware/work
+[doc-img]: https://pkg.go.dev/badge/github.com/freerware/work/v4.svg
+[doc]: https://pkg.go.dev/github.com/freerware/work/v4
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
 [ci]: https://travis-ci.org/freerware/work
 [coverage-img]: https://coveralls.io/repos/github/freerware/work/badge.svg?branch=master
