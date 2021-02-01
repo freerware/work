@@ -99,7 +99,7 @@ u, err := unit.New(opts...)
 
 #### Emitted Metrics
 
-<p align="center"><img src="https://user-images.githubusercontent.com/5921929/106403546-191daa80-63e4-11eb-98b5-6b5d1989bacb.gif" width="800"></p>
+<p align="center"><img src="https://user-images.githubusercontent.com/5921929/106403546-191daa80-63e4-11eb-98b5-6b5d1989bacb.gif" width="960"></p>
 
 | Name                             | Type    | Description                                      |
 | -------------------------------- | ------- | ------------------------------------------------ |
