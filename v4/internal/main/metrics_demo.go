@@ -32,7 +32,7 @@ import (
 type demoDataMapper struct{}
 
 func (dm *demoDataMapper) simulateLatency() {
-	latency := time.Duration(rand.Intn(250)) * time.Millisecond
+	latency := time.Duration(rand.Intn(maximumLatencyMilliseconds)) * time.Millisecond
 	time.Sleep(latency)
 }
 
@@ -98,15 +98,21 @@ type foo struct{}
 
 /* Demo */
 
+const (
+	maximumLatencyMilliseconds  = 150
+	saveAttempts                = 500
+	maximumEntitiesPerOperation = 50
+)
+
 func main() {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < saveAttempts; i++ {
 		unit, err := work.NewUnit(o()...)
 		if err != nil {
 			panic(err)
 		}
 
 		additions := []interface{}{}
-		for j := 0; j < rand.Intn(50); j++ {
+		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			additions = append(additions, foo{})
 		}
 		if err = unit.Add(additions...); err != nil {
@@ -114,7 +120,7 @@ func main() {
 		}
 
 		alters := []interface{}{}
-		for j := 0; j < rand.Intn(50); j++ {
+		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			alters = append(alters, foo{})
 		}
 		if err = unit.Alter(alters...); err != nil {
@@ -122,7 +128,7 @@ func main() {
 		}
 
 		removals := []interface{}{}
-		for j := 0; j < rand.Intn(50); j++ {
+		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			removals = append(removals, foo{})
 		}
 		if err = unit.Remove(removals...); err != nil {
