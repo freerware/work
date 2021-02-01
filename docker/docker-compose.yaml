@@ -1,0 +1,23 @@
+version: '3'
+services:
+  graphite:
+    image: graphiteapp/graphite-statsd
+    restart: always
+    ports:
+      - '80:80'
+      - '2003-2004:2003-2004'
+      - '2023-2024:2023-2024'
+      - '8125:8125/udp'
+      - '8126:8126'
+
+  grafana:
+    image: grafana/grafana
+    restart: always
+    ports:
+      - '3001:3000'
+    volumes:
+      - './grafana/provisioning/dashboards/:/var/lib/grafana/dashboards/'
+      - './grafana/provisioning/data-sources/:/etc/grafana/provisioning/datasources/'
+      - './grafana/provisioning/dashboard-providers/:/etc/grafana/provisioning/dashboards/'
+    depends_on:
+      - graphite
