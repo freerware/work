@@ -56,16 +56,20 @@ var (
 type Unit interface {
 
 	// Register tracks the provided entities as clean.
-	Register(...interface{}) error
+	Register(...Entity) error
+
+	// Cached provides the entities that have been previously registered
+	// and have not been acted on via Add, Alter, or Remove.
+	Cached() map[TypeName][]Entity
 
 	// Add marks the provided entities as new additions.
-	Add(...interface{}) error
+	Add(...Entity) error
 
 	// Alter marks the provided entities as modifications.
-	Alter(...interface{}) error
+	Alter(...Entity) error
 
 	// Remove marks the provided entities as removals.
-	Remove(...interface{}) error
+	Remove(...Entity) error
 
 	// Save commits the new additions, modifications, and removals
 	// within the work unit to a persistent store.
@@ -73,10 +77,11 @@ type Unit interface {
 }
 
 type unit struct {
-	additions       map[TypeName][]interface{}
-	alterations     map[TypeName][]interface{}
-	removals        map[TypeName][]interface{}
-	registered      map[TypeName][]interface{}
+	additions       map[TypeName][]Entity
+	alterations     map[TypeName][]Entity
+	removals        map[TypeName][]Entity
+	registered      map[TypeName][]Entity
+	cached          map[TypeName][]Entity
 	additionCount   int
 	alterationCount int
 	removalCount    int
@@ -135,10 +140,11 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		}),
 	}
 	u := unit{
-		additions:    make(map[TypeName][]interface{}),
-		alterations:  make(map[TypeName][]interface{}),
-		removals:     make(map[TypeName][]interface{}),
-		registered:   make(map[TypeName][]interface{}),
+		additions:    make(map[TypeName][]Entity),
+		alterations:  make(map[TypeName][]Entity),
+		removals:     make(map[TypeName][]Entity),
+		registered:   make(map[TypeName][]Entity),
+		cached:       make(map[TypeName][]Entity),
 		logger:       options.Logger,
 		scope:        options.Scope,
 		actions:      options.Actions,
@@ -154,13 +160,13 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 	}
 	return &bestEffortUnit{
 		unit:              u,
-		successfulInserts: make(map[TypeName][]interface{}),
-		successfulUpdates: make(map[TypeName][]interface{}),
-		successfulDeletes: make(map[TypeName][]interface{}),
+		successfulInserts: make(map[TypeName][]Entity),
+		successfulUpdates: make(map[TypeName][]Entity),
+		successfulDeletes: make(map[TypeName][]Entity),
 	}, nil
 }
 
-func (u *unit) Register(entities ...interface{}) (err error) {
+func (u *unit) Register(entities ...Entity) (err error) {
 	u.executeActions(UnitActionTypeBeforeRegister)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
@@ -170,9 +176,10 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 
 		u.mutex.Lock()
 		if _, ok := u.registered[t]; !ok {
-			u.registered[t] = []interface{}{}
+			u.registered[t] = []Entity{}
 		}
 		u.registered[t] = append(u.registered[t], entity)
+		u.cached[t] = append(u.cached[t], entity)
 		u.registerCount = u.registerCount + 1
 		u.mutex.Unlock()
 	}
@@ -180,7 +187,11 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 	return
 }
 
-func (u *unit) Add(entities ...interface{}) (err error) {
+func (u *unit) Cached() map[TypeName][]Entity {
+	return u.cached
+}
+
+func (u *unit) Add(entities ...Entity) (err error) {
 	u.executeActions(UnitActionTypeBeforeAdd)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
@@ -190,7 +201,7 @@ func (u *unit) Add(entities ...interface{}) (err error) {
 
 		u.mutex.Lock()
 		if _, ok := u.additions[t]; !ok {
-			u.additions[t] = []interface{}{}
+			u.additions[t] = []Entity{}
 		}
 		u.additions[t] = append(u.additions[t], entity)
 		u.additionCount = u.additionCount + 1
@@ -200,7 +211,7 @@ func (u *unit) Add(entities ...interface{}) (err error) {
 	return
 }
 
-func (u *unit) Alter(entities ...interface{}) (err error) {
+func (u *unit) Alter(entities ...Entity) (err error) {
 	u.executeActions(UnitActionTypeBeforeAlter)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
@@ -210,17 +221,18 @@ func (u *unit) Alter(entities ...interface{}) (err error) {
 
 		u.mutex.Lock()
 		if _, ok := u.alterations[t]; !ok {
-			u.alterations[t] = []interface{}{}
+			u.alterations[t] = []Entity{}
 		}
 		u.alterations[t] = append(u.alterations[t], entity)
 		u.alterationCount = u.alterationCount + 1
+		u.invalidate(t, entity)
 		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterAlter)
 	return
 }
 
-func (u *unit) Remove(entities ...interface{}) (err error) {
+func (u *unit) Remove(entities ...Entity) (err error) {
 	u.executeActions(UnitActionTypeBeforeRemove)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
@@ -230,10 +242,11 @@ func (u *unit) Remove(entities ...interface{}) (err error) {
 
 		u.mutex.Lock()
 		if _, ok := u.removals[t]; !ok {
-			u.removals[t] = []interface{}{}
+			u.removals[t] = []Entity{}
 		}
 		u.removals[t] = append(u.removals[t], entity)
 		u.removalCount = u.removalCount + 1
+		u.invalidate(t, entity)
 		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterRemove)
@@ -264,5 +277,18 @@ func (u *unit) executeActions(actionType UnitActionType) {
 			RemovalCount:    u.removalCount,
 			RegisterCount:   u.registerCount,
 		})
+	}
+}
+
+func (u *unit) invalidate(t TypeName, entity Entity) {
+	if entities, ok := u.cached[t]; ok && len(entities) > 0 {
+		cached := []Entity{}
+		for _, cachedEntity := range entities {
+			if cachedEntity.ID() != entity.ID() {
+				cached = append(cached, cachedEntity)
+			}
+		}
+
+		u.cached[t] = cached
 	}
 }

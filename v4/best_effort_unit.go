@@ -33,9 +33,9 @@ var (
 type bestEffortUnit struct {
 	unit
 
-	successfulInserts     map[TypeName][]interface{}
-	successfulUpdates     map[TypeName][]interface{}
-	successfulDeletes     map[TypeName][]interface{}
+	successfulInserts     map[TypeName][]Entity
+	successfulUpdates     map[TypeName][]Entity
+	successfulDeletes     map[TypeName][]Entity
 	successfulInsertCount int
 	successfulUpdateCount int
 	successfulDeleteCount int
@@ -145,7 +145,7 @@ func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (
 			return
 		}
 		if _, ok := u.successfulInserts[typeName]; !ok {
-			u.successfulInserts[typeName] = []interface{}{}
+			u.successfulInserts[typeName] = []Entity{}
 		}
 		u.successfulInserts[typeName] =
 			append(u.successfulInserts[typeName], additions...)
@@ -172,7 +172,7 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (
 			return
 		}
 		if _, ok := u.successfulUpdates[typeName]; !ok {
-			u.successfulUpdates[typeName] = []interface{}{}
+			u.successfulUpdates[typeName] = []Entity{}
 		}
 		u.successfulUpdates[typeName] =
 			append(u.successfulUpdates[typeName], alterations...)
@@ -199,7 +199,7 @@ func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (
 			return
 		}
 		if _, ok := u.successfulDeletes[typeName]; !ok {
-			u.successfulDeletes[typeName] = []interface{}{}
+			u.successfulDeletes[typeName] = []Entity{}
 		}
 		u.successfulDeletes[typeName] =
 			append(u.successfulDeletes[typeName], removals...)
@@ -209,9 +209,9 @@ func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (
 }
 
 func (u *bestEffortUnit) resetSuccesses() {
-	u.successfulInserts = make(map[TypeName][]interface{})
-	u.successfulUpdates = make(map[TypeName][]interface{})
-	u.successfulDeletes = make(map[TypeName][]interface{})
+	u.successfulInserts = make(map[TypeName][]Entity)
+	u.successfulUpdates = make(map[TypeName][]Entity)
+	u.successfulDeletes = make(map[TypeName][]Entity)
 }
 
 func (u *bestEffortUnit) resetSuccessCounts() {

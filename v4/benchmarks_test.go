@@ -24,9 +24,9 @@ import (
 
 const EntityCount = 500
 
-func setupEntities() (entities []interface{}) {
+func setupEntities() (entities []unit.Entity) {
 	for idx := 0; idx < EntityCount; idx++ {
-		entities = append(entities, Foo{ID: idx})
+		entities = append(entities, Foo{id: idx})
 	}
 	return
 }

@@ -36,6 +36,9 @@ var (
 // Unit represents an atomic set of entity changes.
 type Unit = work.Unit
 
+// Entity represents an object defined by its identity, not by its attributes.
+type Entity = work.Entity
+
 // Uniter represents a factory for work units.
 type Uniter = work.Uniter
 

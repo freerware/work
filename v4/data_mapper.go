@@ -19,7 +19,7 @@ import "context"
 
 // DataMapper represents a creator, modifier, and deleter of entities.
 type DataMapper interface {
-	Insert(context.Context, MapperContext, ...interface{}) error
-	Update(context.Context, MapperContext, ...interface{}) error
-	Delete(context.Context, MapperContext, ...interface{}) error
+	Insert(context.Context, MapperContext, ...Entity) error
+	Update(context.Context, MapperContext, ...Entity) error
+	Delete(context.Context, MapperContext, ...Entity) error
 }

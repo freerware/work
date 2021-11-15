@@ -23,33 +23,37 @@ import (
 
 type NoOpDataMapper struct{}
 
-func (dm NoOpDataMapper) Insert(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+func (dm NoOpDataMapper) Insert(ctx context.Context, mCtx unit.MapperContext, e ...unit.Entity) error {
 	return nil
 }
 
-func (dm NoOpDataMapper) Update(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+func (dm NoOpDataMapper) Update(ctx context.Context, mCtx unit.MapperContext, e ...unit.Entity) error {
 	return nil
 }
 
-func (dm NoOpDataMapper) Delete(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+func (dm NoOpDataMapper) Delete(ctx context.Context, mCtx unit.MapperContext, e ...unit.Entity) error {
 	return nil
 }
 
 type Foo struct {
-	ID int
+	id int
 }
 
+func (f Foo) ID() interface{} { return f.id }
+
 type Bar struct {
-	ID string
+	id string
 }
+
+func (b Bar) ID() interface{} { return b.id }
 
 type TableDrivenTest struct {
 	name         string
-	registers    []interface{}
-	additions    []interface{}
-	alters       []interface{}
-	removals     []interface{}
-	expectations func(ctx context.Context, registers, additions, alters, removals []interface{})
+	registers    []unit.Entity
+	additions    []unit.Entity
+	alters       []unit.Entity
+	removals     []unit.Entity
+	expectations func(ctx context.Context, registers, additions, alters, removals []unit.Entity)
 	ctx          context.Context
 	err          error
 	assertions   func()
