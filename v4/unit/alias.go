@@ -59,6 +59,9 @@ type Option = work.UnitOption
 // Options represents the configuration options for the work unit.
 type Options = work.UnitOptions
 
+// RetryDelayType represents the type of retry delay to perform.
+type RetryDelayType = work.UnitRetryDelayType
+
 var (
 	// DB specifies the option to provide the database for the work unit.
 	DB = work.UnitDB
@@ -115,6 +118,15 @@ var (
 	DefaultLoggingActions = work.UnitDefaultLoggingActions
 	// DisableDefaultLoggingActions disables the default logging actions.
 	DisableDefaultLoggingActions = work.DisableDefaultLoggingActions
+	// RetryAttempts defines the number of retry attempts to perform.
+	RetryAttempts = work.UnitRetryAttempts
+	// RetryDelay defines the delay to utilize during retries.
+	RetryDelay = work.UnitRetryDelay
+	// RetryMaximumJitter defines the maximum jitter to utilize during
+	// retries that utilize random delay times.
+	RetryMaximumJitter = work.UnitRetryMaximumJitter
+	// RetryType defines the type of retry to perform.
+	RetryType = work.UnitRetryType
 )
 
 /* Actions. */

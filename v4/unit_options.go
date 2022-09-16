@@ -1,4 +1,4 @@
-/* Copyright 2020 Freerware
+/* Copyright 2021 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@ package work
 
 import (
 	"database/sql"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
@@ -30,10 +32,38 @@ type UnitOptions struct {
 	DisableDefaultLoggingActions bool
 	DataMappers                  map[TypeName]DataMapper
 	DB                           *sql.DB
+	RetryAttempts                int
+	RetryDelay                   time.Duration
+	RetryMaximumJitter           time.Duration
+	RetryType                    UnitRetryDelayType
 }
 
 // UnitOption applies an option to the provided configuration.
 type UnitOption func(*UnitOptions)
+
+// UnitRetryDelayType represents the type of retry delay to perform.
+type UnitRetryDelayType int
+
+func (t UnitRetryDelayType) convert() retry.DelayTypeFunc {
+	types := map[UnitRetryDelayType]retry.DelayTypeFunc{
+		UnitRetryDelayTypeFixed:   retry.FixedDelay,
+		UnitRetryDelayTypeBackOff: retry.BackOffDelay,
+		UnitRetryDelayTypeRandom:  retry.RandomDelay,
+	}
+	if converted, ok := types[t]; ok {
+		return converted
+	}
+	return retry.FixedDelay
+}
+
+const (
+	// Fixed represents a retry type that maintains a constaint delay between retry iterations.
+	UnitRetryDelayTypeFixed = iota
+	// BackOff represents a retry type that increases delay between retry iterations.
+	UnitRetryDelayTypeBackOff
+	// Random represents a retry type that utilizes a random delay between retry iterations.
+	UnitRetryDelayTypeRandom
+)
 
 var (
 	// UnitDB specifies the option to provide the database for the work unit.
@@ -241,6 +271,38 @@ var (
 	DisableDefaultLoggingActions = func() UnitOption {
 		return func(o *UnitOptions) {
 			o.DisableDefaultLoggingActions = true
+		}
+	}
+
+	// UnitRetryAttempts defines the number of retry attempts to perform.
+	UnitRetryAttempts = func(attempts int) UnitOption {
+		if attempts < 0 {
+			attempts = 0
+		}
+		return func(o *UnitOptions) {
+			o.RetryAttempts = attempts
+		}
+	}
+
+	// UnitRetryDelay defines the delay to utilize during retries.
+	UnitRetryDelay = func(delay time.Duration) UnitOption {
+		return func(o *UnitOptions) {
+			o.RetryDelay = delay
+		}
+	}
+
+	// UnitRetryMaximumJitter defines the maximum jitter to utilize during
+	// retries that utilize random delay times.
+	UnitRetryMaximumJitter = func(jitter time.Duration) UnitOption {
+		return func(o *UnitOptions) {
+			o.RetryMaximumJitter = jitter
+		}
+	}
+
+	// UnitRetryType defines the type of retry to perform.
+	UnitRetryType = func(retryType UnitRetryDelayType) UnitOption {
+		return func(o *UnitOptions) {
+			o.RetryType = retryType
 		}
 	}
 )

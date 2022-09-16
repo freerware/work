@@ -1,4 +1,4 @@
-/* Copyright 2020 Freerware
+/* Copyright 2021 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,17 +20,24 @@ import (
 	"database/sql"
 	"errors"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
 )
 
+// Metric scope name definitions.
 const (
 	rollbackSuccess = "rollback.success"
 	rollbackFailure = "rollback.failure"
 	saveSuccess     = "save.success"
 	save            = "save"
 	rollback        = "rollback"
+	retryAttempt    = "retry.attempt"
+	insert          = "insert"
+	update          = "update"
+	delete          = "delete"
 )
 
 var (
@@ -80,14 +87,19 @@ type unit struct {
 	mutex           sync.RWMutex
 	db              *sql.DB
 	mappers         map[TypeName]DataMapper
+	retryOptions    []retry.Option
 }
 
 func options(options []UnitOption) UnitOptions {
 	// set defaults.
 	o := UnitOptions{
-		Logger:  zap.NewNop(),
-		Scope:   tally.NoopScope,
-		Actions: make(map[UnitActionType][]UnitAction),
+		Logger:             zap.NewNop(),
+		Scope:              tally.NoopScope,
+		Actions:            make(map[UnitActionType][]UnitAction),
+		RetryAttempts:      3,
+		RetryType:          UnitRetryDelayTypeFixed,
+		RetryDelay:         50 * time.Millisecond,
+		RetryMaximumJitter: 50 * time.Millisecond,
 	}
 	// apply options.
 	for _, opt := range options {
@@ -96,30 +108,50 @@ func options(options []UnitOption) UnitOptions {
 	if !o.DisableDefaultLoggingActions {
 		UnitDefaultLoggingActions()(&o)
 	}
+	// prepare metrics scope.
+	o.Scope = o.Scope.SubScope("unit")
+	if o.DB != nil {
+		o.Scope = o.Scope.Tagged(sqlUnitTag)
+	} else {
+		o.Scope = o.Scope.Tagged(bestEffortUnitTag)
+	}
 	return o
 }
 
 func NewUnit(opts ...UnitOption) (Unit, error) {
 	options := options(opts)
+	retryOptions := []retry.Option{
+		retry.Attempts(uint(options.RetryAttempts)),
+		retry.Delay(options.RetryDelay),
+		retry.DelayType(options.RetryType.convert()),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(attempt uint, err error) {
+			options.Logger.Warn(
+				"attempted retry",
+				zap.Int("attempt", int(attempt+1)),
+				zap.Error(err),
+			)
+			options.Scope.Counter(retryAttempt).Inc(1)
+		}),
+	}
 	u := unit{
-		additions:   make(map[TypeName][]interface{}),
-		alterations: make(map[TypeName][]interface{}),
-		removals:    make(map[TypeName][]interface{}),
-		registered:  make(map[TypeName][]interface{}),
-		logger:      options.Logger,
-		scope:       options.Scope.SubScope("unit"),
-		actions:     options.Actions,
-		db:          options.DB,
-		mappers:     options.DataMappers,
+		additions:    make(map[TypeName][]interface{}),
+		alterations:  make(map[TypeName][]interface{}),
+		removals:     make(map[TypeName][]interface{}),
+		registered:   make(map[TypeName][]interface{}),
+		logger:       options.Logger,
+		scope:        options.Scope,
+		actions:      options.Actions,
+		db:           options.DB,
+		mappers:      options.DataMappers,
+		retryOptions: retryOptions,
 	}
 	if len(u.mappers) == 0 {
 		return nil, ErrNoDataMapper
 	}
 	if u.db != nil {
-		u.scope = u.scope.Tagged(sqlUnitTag)
 		return &sqlUnit{unit: u}, nil
 	}
-	u.scope = u.scope.Tagged(bestEffortUnitTag)
 	return &bestEffortUnit{
 		unit:              u,
 		successfulInserts: make(map[TypeName][]interface{}),

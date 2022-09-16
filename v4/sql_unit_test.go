@@ -1,4 +1,4 @@
-/* Copyright 2020 Freerware
+/* Copyright 2021 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,11 +56,21 @@ type SQLUnitTestSuite struct {
 	rollbackScopeName                string
 	rollbackFailureScopeName         string
 	rollbackSuccessScopeName         string
+	retryAttemptScopeName            string
+	retryAttemptScopeNameWithTags    string
+	insertScopeName                  string
+	insertScopeNameWithTags          string
+	updateScopeName                  string
+	updateScopeNameWithTags          string
+	deleteScopeName                  string
+	deleteScopeNameWithTags          string
 	tags                             string
 
 	// suite state.
 	isSetup    bool
 	isTornDown bool
+
+	retryCount int
 }
 
 func TestSQLUnitTestSuite(t *testing.T) {
@@ -84,6 +94,14 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.saveSuccessScopeNameWithTags = fmt.Sprintf("%s%s%s", s.saveSuccessScopeName, sep, s.tags)
 	s.rollbackSuccessScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackSuccessScopeName, sep, s.tags)
 	s.rollbackFailureScopeNameWithTags = fmt.Sprintf("%s%s%s", s.rollbackFailureScopeName, sep, s.tags)
+	s.retryAttemptScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.retry.attempt")
+	s.retryAttemptScopeNameWithTags = fmt.Sprintf("%s%s%s", s.retryAttemptScopeName, sep, s.tags)
+	s.insertScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.insert")
+	s.insertScopeNameWithTags = fmt.Sprintf("%s%s%s", s.insertScopeName, sep, s.tags)
+	s.updateScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.update")
+	s.updateScopeNameWithTags = fmt.Sprintf("%s%s%s", s.updateScopeName, sep, s.tags)
+	s.deleteScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.delete")
+	s.deleteScopeNameWithTags = fmt.Sprintf("%s%s%s", s.deleteScopeName, sep, s.tags)
 
 	// test entities.
 	foo := Foo{ID: 28}
@@ -111,12 +129,14 @@ func (s *SQLUnitTestSuite) Setup() {
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
+	s.retryCount = 2
 	s.scope = ts
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
 		work.UnitLogger(l),
 		work.UnitScope(ts),
 		work.UnitDB(s.db),
+		work.UnitRetryAttempts(s.retryCount),
 	}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
@@ -139,7 +159,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				}
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -151,13 +173,16 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
+				}
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
@@ -168,9 +193,11 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -182,15 +209,18 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -202,9 +232,11 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("ouch; whoa"),
@@ -216,15 +248,18 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -236,11 +271,13 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -252,17 +289,20 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -274,11 +314,13 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("ouch; whoa"),
@@ -290,17 +332,20 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -312,13 +357,15 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -330,19 +377,22 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback()
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback()
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -354,13 +404,15 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -372,19 +424,22 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -480,13 +535,15 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa"),
@@ -498,19 +555,22 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			alters:    []interface{}{foos[1], bars[1]},
 			removals:  []interface{}{foos[2]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
-				s._db.ExpectBegin()
-				s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
+				for i := 0; i < s.retryCount; i++ {
+					s._db.ExpectBegin()
+					s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
+				}
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil).Times(s.retryCount)
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
@@ -548,9 +608,73 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.deleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
+				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
+			},
+		},
+		{
+			name:      "Success_RetrySucceeds",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s._db.ExpectBegin()
+				s._db.ExpectCommit()
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(2)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(2)
+				deletionFailure := s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(nil).After(deletionFailure)
+			},
+			ctx:        context.Background(),
+			assertions: func() {},
+		},
+		{
+			name:      "Success_RetrySucceeds_MetricsEmitted",
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				s._db.ExpectBegin()
+				s._db.ExpectRollback()
+				s._db.ExpectBegin()
+				s._db.ExpectCommit()
+				s.mappers[fooType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(2)
+				s.mappers[fooType].EXPECT().
+					Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(2)
+				s.mappers[barType].EXPECT().
+					Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(2)
+				deletionFailure := s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				s.mappers[fooType].EXPECT().
+					Delete(ctx, gomock.Any(), removals[0]).Return(nil).After(deletionFailure)
+			},
+			ctx: context.Background(),
+			assertions: func() {
+				s.Len(s.scope.Snapshot().Counters(), 6)
+				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.deleteScopeNameWithTags)
+				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
 		},

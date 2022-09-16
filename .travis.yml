@@ -1,15 +1,15 @@
 language: go
 go:
-    - 1.12
+    - 1.14
 jobs:
   include:
     -
       stage: 'unit test'
       install:
         - go get golang.org/x/tools/cmd/cover
-        - go get github.com/mattn/goveralls
-      before_script:
-        - 'curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh'
+        - go get github.com/modocache/gover
       script:
         - 'make test'
-        - '$HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN'
+        - 'gover . coverage.txt'
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)

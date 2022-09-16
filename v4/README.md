@@ -7,6 +7,10 @@
 [![Coverage Status][coverage-img]][coverage] [![Release][release-img]][release]
 [![License][license-img]][license] [![Blog][blog-img]][blog]
 
+## Demo
+
+`make demo` (requires `docker-compose`).
+
 ## How to use it?
 
 ### Construction
@@ -95,6 +99,8 @@ u, err := unit.New(opts...)
 
 #### Emitted Metrics
 
+<p align="center"><img src="https://user-images.githubusercontent.com/5921929/106403546-191daa80-63e4-11eb-98b5-6b5d1989bacb.gif" width="960"></p>
+
 | Name                             | Type    | Description                                      |
 | -------------------------------- | ------- | ------------------------------------------------ |
 | [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.        |
@@ -102,6 +108,10 @@ u, err := unit.New(opts...)
 | [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.    |
 | [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.  |
 | [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit. |
+| [_PREFIX._]unit.retry.attempt    | counter | The number of retry attempts.                    |
+| [_PREFIX._]unit.insert           | counter | The number of successful inserts performed.      |
+| [_PREFIX._]unit.update           | counter | The number of successful updates performed.      |
+| [_PREFIX._]unit.delete           | counter | The number of successful deletes performed.      |
 
 ### Uniters
 In most circumstances, an application has many aspects that result in the
@@ -139,8 +149,8 @@ u, err := uniter.Unit()
 [contributing]: https://github.com/freerware/work/blob/master/CONTRIBUTING.md
 [apache-license]: https://github.com/freerware/work/blob/master/LICENSE.txt
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
-[doc-img]: https://godoc.org/github.com/freerware/work?status.svg
-[doc]: https://godoc.org/github.com/freerware/work
+[doc-img]: https://pkg.go.dev/badge/github.com/freerware/work/v4.svg
+[doc]: https://pkg.go.dev/github.com/freerware/work/v4
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
 [ci]: https://travis-ci.org/freerware/work
 [coverage-img]: https://coveralls.io/repos/github/freerware/work/badge.svg?branch=master

@@ -25,24 +25,33 @@ that handles changes when they happen.
 - reduced overhead when applying changes.
 - decoupling of code triggering changes from code that persists the changes.
 - production-ready logs and metrics.
+- works with your existing persistence layer.
+- automatic and configurable retries.
 
 For SQL datastores, also enjoy:
 
 - one transaction, one connection per unit.
-- three queries max.
-  - additions result in a single `INSERT`.
-  - alters result in a single `UPDATE`.
-  - removals result in a single `DELETE`.
+- consolidates persistence operations into three operations, regardless of
+  the amount of entity changes.
 - shorter transaction times.
   - transaction is opened only once the unit is ready to be saved.
   - transaction only remains open as long as it takes for the unit to be saved.
+- proper threading of `context.Context` with `database/sql`.
 
 ## Release information
 
-### [4.0.0][]
+### [4.0.0-beta][v4.0.0-beta]
 
-- Introduce `unit` package to alias all types.
-- API revamp. Using `work` has never been easier!
+- Introduce `unit` package for aliasing.
+  - Reduces API footprint.
+  - Often "flows" better.
+- Introduce retries and related configuration.
+- Reconsolidate data mappers abstractions into single `DataMapper` interface.
+- Introduce `MapperContext`.
+- Alter `Save` to be `context.Context` aware.
+- Refactor `work.NewUnit` to dynamically choose which type of work unit to
+  create based on provided options.
+- Reconsolidate uniter functionality.
 
 ### [3.2.0][v3.2.0]
 
@@ -61,6 +70,10 @@ For SQL datastores, also enjoy:
 
 - NO LONGER SUPPORTED.
 
+> Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
+`3.x.x+` to receive the latest and greatest features, such as
+[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
+
 ## Dependancy Information
 
 As of [`v3.0.0`][modules-release], the project utilizes [modules][modules-doc].
@@ -68,12 +81,6 @@ Prior to `v3.0.0`, the project utilized [`dep`][dep] for dependency management.
 
 In order to transition to modules gracefully, we adhered to the
 [best practice recommendations][modules-wiki] authored by the Golang team.
-
-## Release information
-
-Versions `1.x.x` and `2.x.x` are currently in maintenance mode. Please upgrade to `3.x.x` to
-receive the latest and greatest features, such as [lifecycle actions][actions-pr] and 
-[concurrency support][concurrency-pr]!
 
 ## Contribute
 
@@ -99,12 +106,12 @@ how we do things.
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
 [concurrency-pr]: https://github.com/freerware/work/pull/35
 [actions-pr]: https://github.com/freerware/work/pull/30
-[doc-img]: https://godoc.org/github.com/freerware/work?status.svg
-[doc]: https://godoc.org/github.com/freerware/work
+[doc-img]: https://pkg.go.dev/badge/github.com/freerware/work/v4.svg
+[doc]: https://pkg.go.dev/github.com/freerware/work/v4
 [ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
 [ci]: https://travis-ci.org/freerware/work
-[coverage-img]: https://coveralls.io/repos/github/freerware/work/badge.svg?branch=master
-[coverage]: https://coveralls.io/github/freerware/work?branch=master
+[coverage-img]: https://codecov.io/gh/freerware/work/branch/master/graph/badge.svg?token=W5YH9TPP3C
+[coverage]: https://codecov.io/gh/freerware/work
 [license]: https://opensource.org/licenses/Apache-2.0
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [release]: https://github.com/freerware/work/releases
@@ -113,7 +120,4 @@ how we do things.
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
-
-Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
-`3.x.x+` to receive the latest and greatest features, such as
-[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
+[v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
