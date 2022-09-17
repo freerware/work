@@ -1,6 +1,6 @@
 name: CI
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build:
@@ -24,6 +24,6 @@ jobs:
         name: Upload Code Coverage
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt
+          files: ./work.coverprofile
           fail_ci_if_error: true
           verbose: true
