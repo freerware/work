@@ -24,6 +24,6 @@ jobs:
         name: Upload Code Coverage
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./work.coverprofile
+          files: ./work.coverprofile,./v3/work.coverprofile,./v4/work.coverprofile
           fail_ci_if_error: true
           verbose: true
