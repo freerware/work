@@ -1,0 +1,18 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+flags:
+  v1:
+    paths:
+      - ./*.go
+    carryforward: false
+  v3:
+    paths:
+      - v3/*.go
+    carryforward: true
+  v4:
+    paths:
+      - v4/*.go
+    carryforward: true
