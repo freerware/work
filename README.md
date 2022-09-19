@@ -108,8 +108,8 @@ how we do things.
 [actions-pr]: https://github.com/freerware/work/pull/30
 [doc-img]: https://pkg.go.dev/badge/github.com/freerware/work/v4.svg
 [doc]: https://pkg.go.dev/github.com/freerware/work/v4
-[ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
-[ci]: https://travis-ci.org/freerware/work
+[ci-img]: https://github.com/freerware/work/actions/workflows/ci.yaml/badge.svg?branch=master
+[ci]: https://github.com/freerware/work/actions/workflows/ci.yaml
 [coverage-img]: https://codecov.io/gh/freerware/work/branch/master/graph/badge.svg?token=W5YH9TPP3C
 [coverage]: https://codecov.io/gh/freerware/work
 [license]: https://opensource.org/licenses/Apache-2.0
