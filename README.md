@@ -64,11 +64,11 @@ For SQL datastores, also enjoy:
 
 ### 2.x.x
 
-- NO LONGER SUPPORTED.
+- NO LONGER SUPPORTED. CODE REMOVED.
 
 ### 1.x.x
 
-- NO LONGER SUPPORTED.
+- NO LONGER SUPPORTED. CODE REMOVED.
 
 > Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
 `3.x.x+` to receive the latest and greatest features, such as
