@@ -3,31 +3,6 @@ name: CI
 on: [push]
 
 jobs:
-  tests-v1:
-
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: [ '1.12', '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19' ]
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go-version }}
-      - name: Display Go version
-        run: go version
-      - name: Run Unit Tests
-        run: make tests-v1
-      - uses: codecov/codecov-action@v3
-        name: Upload Code Coverage
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./work.coverprofile
-          flags: v1
-          fail_ci_if_error: true
-          verbose: true
 
   tests-v3:
 
