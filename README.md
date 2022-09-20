@@ -64,11 +64,11 @@ For SQL datastores, also enjoy:
 
 ### 2.x.x
 
-- NO LONGER SUPPORTED.
+- NO LONGER SUPPORTED. CODE REMOVED.
 
 ### 1.x.x
 
-- NO LONGER SUPPORTED.
+- NO LONGER SUPPORTED. CODE REMOVED.
 
 > Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
 `3.x.x+` to receive the latest and greatest features, such as
@@ -108,8 +108,8 @@ how we do things.
 [actions-pr]: https://github.com/freerware/work/pull/30
 [doc-img]: https://pkg.go.dev/badge/github.com/freerware/work/v4.svg
 [doc]: https://pkg.go.dev/github.com/freerware/work/v4
-[ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
-[ci]: https://travis-ci.org/freerware/work
+[ci-img]: https://github.com/freerware/work/actions/workflows/ci.yaml/badge.svg?branch=master
+[ci]: https://github.com/freerware/work/actions/workflows/ci.yaml
 [coverage-img]: https://codecov.io/gh/freerware/work/branch/master/graph/badge.svg?token=W5YH9TPP3C
 [coverage]: https://codecov.io/gh/freerware/work
 [license]: https://opensource.org/licenses/Apache-2.0
