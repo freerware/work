@@ -9,4 +9,5 @@ require (
 	github.com/uber-go/tally v3.3.13+incompatible
 	go.uber.org/multierr v1.4.0
 	go.uber.org/zap v1.13.0
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
