@@ -150,7 +150,7 @@ func (s *SQLUnitTestSuite) SetupTest() {
 
 func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
-	bars := []interface{}{Bar{ID: "id"}, Bar{ID: "1992"}}
+	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
 	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
 	return []TableDrivenTest{
 		{
