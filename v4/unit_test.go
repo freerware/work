@@ -52,12 +52,18 @@ func (s *UnitTestSuite) SetupTest() {
 	fooTypeName := work.TypeNameOf(foo)
 	bar := Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
+	baz := Baz{Identifier: "28"}
+	bazTypeName := work.TypeNameOf(baz)
+	biz := Biz{Identifier: "28"}
+	bizTypeName := work.TypeNameOf(biz)
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
 	s.mappers = make(map[work.TypeName]*mock.DataMapper)
 	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
 	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers[bizTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers[bazTypeName] = mock.NewDataMapper(s.mc)
 
 	// construct SUT.
 	dm := make(map[work.TypeName]work.DataMapper)
@@ -356,7 +362,7 @@ func (s *UnitTestSuite) TestUnit_Register() {
 	// arrange.
 	entities := []interface{}{
 		Foo{ID: 28},
-		Bar{ID: "28"},
+		Biz{Identifier: "28"},
 	}
 
 	// action.
@@ -389,6 +395,22 @@ func (s *UnitTestSuite) TestUnit_ConcurrentRegister() {
 	// assert.
 	s.NoError(err)
 	s.NoError(err2)
+}
+
+func (s *UnitTestSuite) TestUnit_Cache() {
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Baz{Identifier: "28"},
+	}
+	s.sut.Register(entities...)
+
+	// action.
+	cached := s.sut.Cached()
+
+	// assert.
+	s.Contains(cached[work.TypeNameOf(entities[0])], entities[0])
+	s.Contains(cached[work.TypeNameOf(entities[1])], entities[1])
 }
 
 func (s *UnitTestSuite) TearDownTest() {

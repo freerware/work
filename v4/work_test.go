@@ -47,6 +47,16 @@ type Bar struct {
 
 func (b Bar) Identifier() interface{} { return b.ID }
 
+type Baz struct {
+	Identifier string
+}
+
+func (b Baz) ID() interface{} { return b.Identifier }
+
+type Biz struct {
+	Identifier string
+}
+
 type TableDrivenTest struct {
 	name         string
 	registers    []interface{}
