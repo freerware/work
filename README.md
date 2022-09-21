@@ -40,7 +40,28 @@ For SQL datastores, also enjoy:
 
 ## Release information
 
-### [4.0.0-beta][v4.0.0-beta]
+| Version | Supported | Documentation      |
+|---------|-----------|--------------------|
+| `V4`    |  ✅       | See `v4/README.md` |
+| `V3`    |  ✅       | None               |
+| `V2`    |  ❌       | None               |
+| `V1`    |  ❌       | None               |
+
+### V4
+
+#### [4.0.0-beta.2][v4.0.0-beta.2]
+
+- Introduce initial round of benchmarks.
+- Introduce support for 4 more additional metrics.
+  - `unit.retry.attempt`
+  - `unit.insert`
+  - `unit.update`
+  - `unit.delete`
+- Improve documentation & switch to pkg.go.dev.
+- Introduce metric demo.
+  - `make demo`
+
+#### [4.0.0-beta][v4.0.0-beta]
 
 - Introduce `unit` package for aliasing.
   - Reduces API footprint.
@@ -53,22 +74,31 @@ For SQL datastores, also enjoy:
   create based on provided options.
 - Reconsolidate uniter functionality.
 
-### [3.2.0][v3.2.0]
+### V3
+
+#### [3.2.1][v3.2.1]
+
+- Various dependency upgrades to address security fixes.
+	- Upgraded `github.com/uber-go/tally` dependency to version `v3.4.2`.
+	- Upgraded `github.com/uber-go/tally` dependency to version `v1.8.0`.
+	- Upgraded `go.uber.org/zap` dependency to version `v1.21.1`.
+
+#### [3.2.0][v3.2.0]
 
 - Introduce [lifecycle actions][actions-pr].
 - Introduce [concurrency support][concurrency-pr].
 
-### [3.0.0][v3.0.0]
+#### [3.0.0][v3.0.0]
 
 - Introduce support for Go modules.
 
-### 2.x.x
+### V2
 
-- NO LONGER SUPPORTED. CODE REMOVED.
+- NO LONGER SUPPORTED. CODE REMOVED. SEE `v2.x.x` TAGS.
 
-### 1.x.x
+### V1
 
-- NO LONGER SUPPORTED. CODE REMOVED.
+- NO LONGER SUPPORTED. CODE REMOVED. SEE `v1.x.x` TAGS.
 
 > Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
 `3.x.x+` to receive the latest and greatest features, such as
