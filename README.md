@@ -49,6 +49,13 @@ For SQL datastores, also enjoy:
 
 ### V4
 
+#### [4.0.0-beta.3][v4.0.0-beta.3]
+
+- Various dependency upgrades to address vulnerability [alerts][dependabot-alerts].
+	- Upgraded `github.com/uber-go/tally` dependency to version `v3.4.2`.
+	- Upgraded `github.com/stretchr/testify` dependency to version `v1.8.0`.
+	- Upgraded `go.uber.org/zap` dependency to version `v1.21.1`.
+
 #### [4.0.0-beta.2][v4.0.0-beta.2]
 
 - Introduce initial round of benchmarks.
@@ -78,9 +85,9 @@ For SQL datastores, also enjoy:
 
 #### [3.2.1][v3.2.1]
 
-- Various dependency upgrades to address security fixes.
+- Various dependency upgrades to address vulnerability [alerts][dependabot-alerts].
 	- Upgraded `github.com/uber-go/tally` dependency to version `v3.4.2`.
-	- Upgraded `github.com/uber-go/tally` dependency to version `v1.8.0`.
+	- Upgraded `github.com/stretchr/testify` dependency to version `v1.8.0`.
 	- Upgraded `go.uber.org/zap` dependency to version `v1.21.1`.
 
 #### [3.2.0][v3.2.0]
@@ -150,7 +157,10 @@ how we do things.
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
 [v4-docs]: https://github.com/freerware/work/blob/master/v4/README.md
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
+[v3.2.1]: https://github.com/freerware/work/releases/tag/v3.2.1
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
 [v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
 [v4.0.0-beta.2]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.2
+[v4.0.0-beta.3]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.3
 [tags]: https://github.com/freerware/work/tags
+[dependabot-alerts]: https://github.com/freerware/work/security/dependabot?q=is%3Aclosed
