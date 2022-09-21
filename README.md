@@ -94,11 +94,11 @@ For SQL datastores, also enjoy:
 
 ### V2
 
-- NO LONGER SUPPORTED. CODE REMOVED. SEE `v2.x.x` TAGS.
+- NO LONGER SUPPORTED. CODE REMOVED. SEE `v2.x.x` [TAGS][tags].
 
 ### V1
 
-- NO LONGER SUPPORTED. CODE REMOVED. SEE `v1.x.x` TAGS.
+- NO LONGER SUPPORTED. CODE REMOVED. SEE `v1.x.x` [TAGS][tags].
 
 > Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
 `3.x.x+` to receive the latest and greatest features, such as
@@ -152,3 +152,5 @@ how we do things.
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
 [v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
+[v4.0.0-beta.2]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.2
+[tags]: https://github.com/freerware/work/tags
