@@ -44,9 +44,9 @@ func TestUniterTestSuite(t *testing.T) {
 func (s *UniterTestSuite) SetupTest() {
 
 	// test entities.
-	foo := Foo{id: 28}
+	foo := Foo{ID: 28}
 	fooTypeName := work.TypeNameOf(foo)
-	bar := Bar{id: "28"}
+	bar := Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.

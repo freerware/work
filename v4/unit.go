@@ -284,7 +284,7 @@ func (u *unit) invalidate(t TypeName, entity Entity) {
 	if entities, ok := u.cached[t]; ok && len(entities) > 0 {
 		cached := []Entity{}
 		for _, cachedEntity := range entities {
-			if cachedEntity.ID() != entity.ID() {
+			if cachedEntity.Identifier() != entity.Identifier() {
 				cached = append(cached, cachedEntity)
 			}
 		}

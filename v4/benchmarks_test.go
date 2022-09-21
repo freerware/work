@@ -26,7 +26,7 @@ const EntityCount = 500
 
 func setupEntities() (entities []unit.Entity) {
 	for idx := 0; idx < EntityCount; idx++ {
-		entities = append(entities, Foo{id: idx})
+		entities = append(entities, Foo{ID: idx})
 	}
 	return
 }

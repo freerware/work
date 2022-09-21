@@ -105,9 +105,9 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.deleteScopeNameWithTags = fmt.Sprintf("%s%s%s", s.deleteScopeName, sep, s.tags)
 
 	// test entities.
-	foo := Foo{id: 28}
+	foo := Foo{ID: 28}
 	fooTypeName := work.TypeNameOf(foo)
-	bar := Bar{id: "28"}
+	bar := Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
@@ -150,8 +150,8 @@ func (s *SQLUnitTestSuite) SetupTest() {
 }
 
 func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
-	foos := []unit.Entity{Foo{id: 28}, Foo{id: 1992}, Foo{id: 2}}
-	bars := []unit.Entity{Bar{id: "id"}, Bar{id: "1992"}}
+	foos := []unit.Entity{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
+	bars := []unit.Entity{Bar{ID: "id"}, Bar{ID: "1992"}}
 	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
 	return []TableDrivenTest{
 		{

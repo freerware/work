@@ -1,4 +1,4 @@
-/* Copyright 2021 Freerware
+/* Copyright 2022 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,6 @@ package work
 
 // Entity represents an object defined by its identity, not by its attributes.
 type Entity interface {
-	// ID retrieves the identity for the object.
-	ID() interface{}
+	// Identifier retrieves the identity for the object.
+	Identifier() interface{}
 }

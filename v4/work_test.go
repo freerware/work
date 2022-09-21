@@ -36,16 +36,16 @@ func (dm NoOpDataMapper) Delete(ctx context.Context, mCtx unit.MapperContext, e 
 }
 
 type Foo struct {
-	id int
+	ID int
 }
 
-func (f Foo) ID() interface{} { return f.id }
+func (f Foo) Identifier() interface{} { return f.ID }
 
 type Bar struct {
-	id string
+	ID string
 }
 
-func (b Bar) ID() interface{} { return b.id }
+func (b Bar) Identifier() interface{} { return b.ID }
 
 type TableDrivenTest struct {
 	name         string
