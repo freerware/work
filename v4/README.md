@@ -141,16 +141,17 @@ the work unit, you indicate the data mappers that it should use when persisting
 the desired state. These data mappers are organized by entity type. As such,
 batching occurs for each operation and entity type pair.
 
-For example, assume we have a single work unit `u`, and have performed myriad
+For example, assume we have a single work unit and have performed a myriad
 of unit operations for entities with either a type of `Foo` or `Bar`. All inserts
-for entities of type `Foo` will be [passed][insert-method-ref] to the corresponding data mapper at
-once via the `Insert` [method][insert-method]. This essentially then relinquishes control you,
+for entities of type `Foo` will be [passed][insert-method-ref] to the corresponding data mapper in
+one shot via the `Insert` [method][insert-method]. This essentially then relinquishes control to you,
 the auther of the data mapper, to handle all of those entities to be inserted
 in however you see fit. You could choose to insert them all into a relational
 database using a single `INSERT` query, or perhaps issue an HTTP request to
 an API to create all of those entities. However, inserts for entities of type
-`Bar` will be batched separately. In fact, it's likely the data mapper to handle
-inserts for `Foo` and `Bar` are completely different types.
+`Bar` will be batched separately. In fact, it's most likely the data mapper to handle
+inserts for `Foo` and `Bar` are completely different types (and maybe even
+completely different data stores).
 
 The same applies for other operations such as updates and deletions. All
 supported data mapper operations follow this paradigm.
