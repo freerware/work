@@ -130,6 +130,31 @@ uniter := unit.NewUniter(opts...)
 u, err := uniter.Unit()
 ```
 
+## Frequently Asked Questions (FAQ)
+
+### Are batch data mapper operations supported?
+
+In short, yes.
+
+A work unit can accommodate an arbitrary number of entity types. When creating
+the work unit, you indicate the data mappers that it should use when persisting
+the desired state. These data mappers are organized by entity type. As such,
+batching occurs for each operation and entity type pair.
+
+For example, assume we have a single work unit `u`, and have performed myriad
+of unit operations for entities with either a type of `Foo` or `Bar`. All inserts
+for entities of type `Foo` will be [passed][insert-method-ref] to the corresponding data mapper at
+once via the `Insert` [method][insert-method]. This essentially then relinquishes control you,
+the auther of the data mapper, to handle all of those entities to be inserted
+in however you see fit. You could choose to insert them all into a relational
+database using a single `INSERT` query, or perhaps issue an HTTP request to
+an API to create all of those entities. However, inserts for entities of type
+`Bar` will be batched separately. In fact, it's likely the data mapper to handle
+inserts for `Foo` and `Bar` are completely different types.
+
+The same applies for other operations such as updates and deletions. All
+supported data mapper operations follow this paradigm.
+
 [uow]: https://martinfowler.com/eaaCatalog/unitOfWork.html
 [sql-data-mapper-doc]: https://godoc.org/github.com/freerware/work#SQLDataMapper
 [data-mapper-doc]: https://godoc.org/github.com/freerware/work#DataMapper
@@ -151,13 +176,15 @@ u, err := uniter.Unit()
 [code-of-conduct]: https://github.com/freerware/work/blob/master/CODE_OF_CONDUCT.md
 [doc-img]: https://pkg.go.dev/badge/github.com/freerware/work/v4.svg
 [doc]: https://pkg.go.dev/github.com/freerware/work/v4
-[ci-img]: https://travis-ci.org/freerware/work.svg?branch=master
-[ci]: https://travis-ci.org/freerware/work
-[coverage-img]: https://coveralls.io/repos/github/freerware/work/badge.svg?branch=master
-[coverage]: https://coveralls.io/github/freerware/work?branch=master
+[ci-img]: https://github.com/freerware/work/actions/workflows/ci.yaml/badge.svg?branch=master
+[ci]: https://github.com/freerware/work/actions/workflows/ci.yaml
+[coverage-img]: https://codecov.io/gh/freerware/work/branch/master/graph/badge.svg?token=W5YH9TPP3C
+[coverage]: https://codecov.io/gh/freerware/work
 [license]: https://opensource.org/licenses/Apache-2.0
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [release]: https://github.com/freerware/work/releases
 [release-img]: https://img.shields.io/github/tag/freerware/work.svg?label=version
 [blog]: https://medium.com/@freerjm/work-units-ec2da48cf574
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
+[insert-method]: https://github.com/freerware/work/blob/v4.0.0-beta.2/v4/data_mapper.go#L22
+[insert-method-ref]: https://github.com/freerware/work/blob/v4.0.0-beta.2/v4/best_effort_unit.go#L137
