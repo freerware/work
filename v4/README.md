@@ -145,7 +145,7 @@ For example, assume we have a single work unit and have performed a myriad
 of unit operations for entities with either a type of `Foo` or `Bar`. All inserts
 for entities of type `Foo` will be [passed][insert-method-ref] to the corresponding data mapper in
 one shot via the `Insert` [method][insert-method]. This essentially then relinquishes control to you,
-the auther of the data mapper, to handle all of those entities to be inserted
+the author of the data mapper, to handle all of those entities to be inserted
 in however you see fit. You could choose to insert them all into a relational
 database using a single `INSERT` query, or perhaps issue an HTTP request to
 an API to create all of those entities. However, inserts for entities of type
