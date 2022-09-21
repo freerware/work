@@ -40,12 +40,12 @@ For SQL datastores, also enjoy:
 
 ## Release information
 
-| Version | Supported | Documentation      |
-|---------|-----------|--------------------|
-| `V4`    |  ✅       | See `v4/README.md` |
-| `V3`    |  ✅       | None               |
-| `V2`    |  ❌       | None               |
-| `V1`    |  ❌       | None               |
+| Version | Supported | Documentation                 |
+|---------|-----------|-------------------------------|
+| `V4`    |  ✅       | [See][v4-docs] `v4/README.md` |
+| `V3`    |  ✅       | None                          |
+| `V2`    |  ❌       | None                          |
+| `V1`    |  ❌       | None                          |
 
 ### V4
 
@@ -148,6 +148,7 @@ how we do things.
 [release-img]: https://img.shields.io/github/tag/freerware/work.svg?label=version
 [blog]: https://medium.com/@freerjm/work-units-ec2da48cf574
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
+[v4-docs]: https://github.com/freerware/work/blob/master/v4/README.md
 [v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
 [v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
 [v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
