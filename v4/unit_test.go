@@ -101,7 +101,7 @@ func (s *UnitTestSuite) TestUnit_NewUnit_NoDataMappers() {
 func (s *UnitTestSuite) TestUnit_Add_Empty() {
 
 	// arrange.
-	entities := []work.Entity{}
+	entities := []interface{}{}
 
 	// action.
 	err := s.sut.Add(entities...)
@@ -113,7 +113,7 @@ func (s *UnitTestSuite) TestUnit_Add_Empty() {
 func (s *UnitTestSuite) TestUnit_Add_MissingDataMapper() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Foo{ID: 28},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
@@ -134,7 +134,7 @@ func (s *UnitTestSuite) TestUnit_Add_MissingDataMapper() {
 func (s *UnitTestSuite) TestUnit_Add() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
@@ -174,7 +174,7 @@ func (s *UnitTestSuite) TestUnit_ConcurrentAdd() {
 func (s *UnitTestSuite) TestUnit_Alter_Empty() {
 
 	// arrange.
-	entities := []work.Entity{}
+	entities := []interface{}{}
 
 	// action.
 	err := s.sut.Alter(entities...)
@@ -186,7 +186,7 @@ func (s *UnitTestSuite) TestUnit_Alter_Empty() {
 func (s *UnitTestSuite) TestUnit_Alter_MissingDataMapper() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Foo{ID: 28},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
@@ -207,7 +207,7 @@ func (s *UnitTestSuite) TestUnit_Alter_MissingDataMapper() {
 func (s *UnitTestSuite) TestUnit_Alter() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
@@ -247,7 +247,7 @@ func (s *UnitTestSuite) TestUnit_ConcurrentAlter() {
 func (s *UnitTestSuite) TestUnit_Remove_Empty() {
 
 	// arrange.
-	entities := []work.Entity{}
+	entities := []interface{}{}
 
 	// action.
 	err := s.sut.Remove(entities...)
@@ -259,7 +259,7 @@ func (s *UnitTestSuite) TestUnit_Remove_Empty() {
 func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Bar{ID: "28"},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
@@ -280,7 +280,7 @@ func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 func (s *UnitTestSuite) TestUnit_Remove() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}
@@ -320,7 +320,7 @@ func (s *UnitTestSuite) TestUnit_ConcurrentRemove() {
 func (s *UnitTestSuite) TestUnit_Register_Empty() {
 
 	// arrange.
-	entities := []work.Entity{}
+	entities := []interface{}{}
 
 	// action.
 	err := s.sut.Register(entities...)
@@ -332,7 +332,7 @@ func (s *UnitTestSuite) TestUnit_Register_Empty() {
 func (s *UnitTestSuite) TestUnit_Register_MissingDataMapper() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Bar{ID: "28"},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
@@ -354,7 +354,7 @@ func (s *UnitTestSuite) TestUnit_Register_MissingDataMapper() {
 func (s *UnitTestSuite) TestUnit_Register() {
 
 	// arrange.
-	entities := []work.Entity{
+	entities := []interface{}{
 		Foo{ID: 28},
 		Bar{ID: "28"},
 	}

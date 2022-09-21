@@ -15,8 +15,8 @@
 
 package work
 
-// Entity represents an object defined by its identity, not by its attributes.
-type Entity interface {
+// identifierer represents an object defined by its identity, not by its attributes.
+type identifierer interface {
 	// Identifier retrieves the identity for the object.
 	Identifier() interface{}
 }

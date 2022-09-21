@@ -25,7 +25,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/freerware/work/v4"
 	"github.com/freerware/work/v4/internal/mock"
-	"github.com/freerware/work/v4/unit"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -150,16 +149,16 @@ func (s *SQLUnitTestSuite) SetupTest() {
 }
 
 func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
-	foos := []unit.Entity{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
-	bars := []unit.Entity{Bar{ID: "id"}, Bar{ID: "1992"}}
+	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
+	bars := []interface{}{Bar{ID: "id"}, Bar{ID: "1992"}}
 	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
 	return []TableDrivenTest{
 		{
 			name:      "TransactionBeginError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
 				}
@@ -170,10 +169,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "TransactionBeginError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin().WillReturnError(errors.New("whoa"))
 				}
@@ -190,10 +189,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "InsertError",
-			additions: []unit.Entity{foos[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback()
@@ -206,10 +205,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "InsertError_MetricsEmitted",
-			additions: []unit.Entity{foos[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback()
@@ -229,10 +228,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "InsertAndRollbackError",
-			additions: []unit.Entity{foos[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
@@ -245,10 +244,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "InsertAndRollbackError_MetricsEmitted",
-			additions: []unit.Entity{foos[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
@@ -268,10 +267,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "UpdateError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback()
@@ -286,10 +285,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "UpdateError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback()
@@ -311,10 +310,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "UpdateAndRollbackError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
@@ -329,10 +328,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "UpdateAndRollbackError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
@@ -354,10 +353,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "DeleteError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback()
@@ -374,10 +373,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "DeleteError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback()
@@ -401,10 +400,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "DeleteAndRollbackError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
@@ -421,10 +420,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "DeleteAndRollbackError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
@@ -448,10 +447,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "Panic",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -466,10 +465,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "Panic_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -490,10 +489,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "PanicAndRollbackError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -508,10 +507,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "PanicAndRollbackError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback().WillReturnError(errors.New("whoa"))
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -532,10 +531,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "CommitError",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
@@ -552,10 +551,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "CommitError_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				for i := 0; i < s.retryCount; i++ {
 					s._db.ExpectBegin()
 					s._db.ExpectCommit().WillReturnError(errors.New("whoa"))
@@ -578,10 +577,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "Success",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectCommit()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -595,10 +594,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "Success_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectCommit()
 				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
@@ -620,10 +619,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "Success_RetrySucceeds",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s._db.ExpectBegin()
@@ -646,10 +645,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 		},
 		{
 			name:      "Success_RetrySucceeds_MetricsEmitted",
-			additions: []unit.Entity{foos[0], bars[0]},
-			alters:    []unit.Entity{foos[1], bars[1]},
-			removals:  []unit.Entity{foos[2]},
-			expectations: func(ctx context.Context, registers, additions, alters, removals []unit.Entity) {
+			additions: []interface{}{foos[0], bars[0]},
+			alters:    []interface{}{foos[1], bars[1]},
+			removals:  []interface{}{foos[2]},
+			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				s._db.ExpectBegin()
 				s._db.ExpectRollback()
 				s._db.ExpectBegin()

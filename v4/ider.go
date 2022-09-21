@@ -15,11 +15,8 @@
 
 package work
 
-import "context"
-
-// DataMapper represents a creator, modifier, and deleter of entities.
-type DataMapper interface {
-	Insert(context.Context, MapperContext, ...interface{}) error
-	Update(context.Context, MapperContext, ...interface{}) error
-	Delete(context.Context, MapperContext, ...interface{}) error
+// ider represents an object defined by its identity, not by its attributes.
+type ider interface {
+	// ider retrieves the identity for the object.
+	ID() interface{}
 }
