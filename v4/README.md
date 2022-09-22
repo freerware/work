@@ -112,6 +112,8 @@ u, err := unit.New(opts...)
 | [_PREFIX._]unit.insert           | counter | The number of successful inserts performed.      |
 | [_PREFIX._]unit.update           | counter | The number of successful updates performed.      |
 | [_PREFIX._]unit.delete           | counter | The number of successful deletes performed.      |
+| [_PREFIX._]unit.cache.insert     | counter | The number of registered entities cached.        |
+| [_PREFIX._]unit.cache.invalidate | counter | The number of cache invalidations.               |
 
 ### Uniters
 In most circumstances, an application has many aspects that result in the
