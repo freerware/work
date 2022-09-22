@@ -203,7 +203,14 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 }
 
 func (u *unit) Cached() map[TypeName][]interface{} {
-	return u.cached
+	cachedCopy := make(map[TypeName][]interface{})
+	for t, entities := range u.cached {
+		if len(cachedCopy[t]) == 0 {
+			cachedCopy[t] = []interface{}{}
+		}
+		cachedCopy[t] = append(cachedCopy[t], entities...)
+	}
+	return cachedCopy
 }
 
 func (u *unit) Add(entities ...interface{}) (err error) {
