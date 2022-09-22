@@ -413,6 +413,42 @@ func (s *UnitTestSuite) TestUnit_Cache() {
 	s.Contains(cached[work.TypeNameOf(entities[1])], entities[1])
 }
 
+func (s *UnitTestSuite) TestUnit_Remove_InvalidatesCache() {
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Baz{Identifier: "28"},
+	}
+	s.sut.Register(entities...)
+
+	// action.
+	err := s.sut.Remove(entities[0])
+
+	// assert.
+	s.NoError(err)
+	cached := s.sut.Cached()
+	s.Contains(cached[work.TypeNameOf(entities[1])], entities[1])
+	s.NotContains(cached[work.TypeNameOf(entities[0])], entities[0])
+}
+
+func (s *UnitTestSuite) TestUnit_Alter_InvalidatesCache() {
+	// arrange.
+	entities := []interface{}{
+		Foo{ID: 28},
+		Baz{Identifier: "28"},
+	}
+	s.sut.Register(entities...)
+
+	// action.
+	err := s.sut.Alter(entities[0])
+
+	// assert.
+	s.NoError(err)
+	cached := s.sut.Cached()
+	s.Contains(cached[work.TypeNameOf(entities[1])], entities[1])
+	s.NotContains(cached[work.TypeNameOf(entities[0])], entities[0])
+}
+
 func (s *UnitTestSuite) TearDownTest() {
 	s.sut = nil
 	s.mc.Finish()

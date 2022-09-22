@@ -308,7 +308,7 @@ func (u *unit) invalidate(t TypeName, entity interface{}) {
 		for _, cachedEntity := range entities {
 			ceID, ceOK := id(cachedEntity)
 			eID, eOK := id(entity)
-			if ceOK && eOK && ceID == eID {
+			if ceOK && eOK && ceID != eID {
 				cached = append(cached, cachedEntity)
 			}
 		}
