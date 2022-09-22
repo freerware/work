@@ -38,6 +38,8 @@ const (
 	insert          = "insert"
 	update          = "update"
 	delete          = "delete"
+	cacheInsert     = "cache.insert"
+	cacheInvalidate = "cache.invalidate"
 )
 
 var (
@@ -192,6 +194,7 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 		u.registered[t] = append(u.registered[t], entity)
 		if _, ok := id(entity); ok {
 			u.cached[t] = append(u.cached[t], entity)
+			u.scope.Counter(cacheInsert).Inc(1)
 		} else {
 			u.logger.Warn("unable to cache entity - does not implement supported interfaces")
 		}
@@ -308,8 +311,12 @@ func (u *unit) invalidate(t TypeName, entity interface{}) {
 		for _, cachedEntity := range entities {
 			ceID, ceOK := id(cachedEntity)
 			eID, eOK := id(entity)
-			if ceOK && eOK && ceID != eID {
-				cached = append(cached, cachedEntity)
+			if ceOK && eOK {
+				if ceID != eID {
+					cached = append(cached, cachedEntity)
+				} else {
+					u.scope.Counter(cacheInvalidate).Inc(1)
+				}
 			}
 		}
 

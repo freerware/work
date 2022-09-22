@@ -111,6 +111,14 @@ func main() {
 			panic(err)
 		}
 
+		registrations := []interface{}{}
+		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
+			registrations = append(registrations, foo{})
+		}
+		if err = unit.Register(registrations...); err != nil {
+			panic(err)
+		}
+
 		additions := []interface{}{}
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			additions = append(additions, foo{})
