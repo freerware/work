@@ -20,6 +20,7 @@ import (
 
 	"github.com/freerware/work/v4/internal/test"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber-go/tally"
 )
 
 type UnitCacheTestSuite struct {
@@ -34,7 +35,7 @@ func TestUnitCacheTestSuite(t *testing.T) {
 }
 
 func (s *UnitCacheTestSuite) SetupTest() {
-	s.sut = UnitCache{}
+	s.sut = UnitCache{scope: tally.NoopScope}
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Delete() {

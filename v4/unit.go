@@ -192,9 +192,7 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 			u.registered[t] = []interface{}{}
 		}
 		u.registered[t] = append(u.registered[t], entity)
-		if cacheErr := u.cached.store(entity); cacheErr == nil {
-			u.scope.Counter(cacheInsert).Inc(1)
-		} else {
+		if cacheErr := u.cached.store(entity); cacheErr != nil {
 			u.logger.Warn(cacheErr.Error())
 		}
 		u.registerCount = u.registerCount + 1

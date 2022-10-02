@@ -61,10 +61,12 @@ func (uc *UnitCache) store(entity interface{}) (err error) {
 		entitiesByID := &sync.Map{}
 		entitiesByID.Store(id, entity)
 		uc.m.Store(t, entitiesByID)
+		uc.scope.Counter(cacheInsert).Inc(1)
 		return
 	} else {
 		if entityMap, ok := cached.(*sync.Map); ok {
 			entityMap.Store(id, entity)
+			uc.scope.Counter(cacheInsert).Inc(1)
 		}
 		return
 	}
