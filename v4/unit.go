@@ -62,7 +62,7 @@ type Unit interface {
 
 	// Cached provides the entities that have been previously registered
 	// and have not been acted on via Add, Alter, or Remove.
-	Cached() map[TypeName][]interface{}
+	Cached() *UnitCache
 
 	// Add marks the provided entities as new additions.
 	Add(...interface{}) error
@@ -83,7 +83,7 @@ type unit struct {
 	alterations     map[TypeName][]interface{}
 	removals        map[TypeName][]interface{}
 	registered      map[TypeName][]interface{}
-	cached          map[TypeName][]interface{}
+	cached          *UnitCache
 	additionCount   int
 	alterationCount int
 	removalCount    int
@@ -146,7 +146,7 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		alterations:  make(map[TypeName][]interface{}),
 		removals:     make(map[TypeName][]interface{}),
 		registered:   make(map[TypeName][]interface{}),
-		cached:       make(map[TypeName][]interface{}),
+		cached:       &UnitCache{scope: options.Scope},
 		logger:       options.Logger,
 		scope:        options.Scope,
 		actions:      options.Actions,
@@ -192,11 +192,10 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 			u.registered[t] = []interface{}{}
 		}
 		u.registered[t] = append(u.registered[t], entity)
-		if _, ok := id(entity); ok {
-			u.cached[t] = append(u.cached[t], entity)
+		if cacheErr := u.cached.store(entity); cacheErr == nil {
 			u.scope.Counter(cacheInsert).Inc(1)
 		} else {
-			u.logger.Warn("unable to cache entity - does not implement supported interfaces")
+			u.logger.Warn(cacheErr.Error())
 		}
 		u.registerCount = u.registerCount + 1
 		u.mutex.Unlock()
@@ -205,15 +204,8 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 	return
 }
 
-func (u *unit) Cached() map[TypeName][]interface{} {
-	cachedCopy := make(map[TypeName][]interface{})
-	for t, entities := range u.cached {
-		if len(cachedCopy[t]) == 0 {
-			cachedCopy[t] = []interface{}{}
-		}
-		cachedCopy[t] = append(cachedCopy[t], entities...)
-	}
-	return cachedCopy
+func (u *unit) Cached() *UnitCache {
+	return u.cached
 }
 
 func (u *unit) Add(entities ...interface{}) (err error) {
@@ -250,7 +242,7 @@ func (u *unit) Alter(entities ...interface{}) (err error) {
 		}
 		u.alterations[t] = append(u.alterations[t], entity)
 		u.alterationCount = u.alterationCount + 1
-		u.invalidate(t, entity)
+		u.cached.delete(entity)
 		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterAlter)
@@ -271,7 +263,7 @@ func (u *unit) Remove(entities ...interface{}) (err error) {
 		}
 		u.removals[t] = append(u.removals[t], entity)
 		u.removalCount = u.removalCount + 1
-		u.invalidate(t, entity)
+		u.cached.delete(entity)
 		u.mutex.Unlock()
 	}
 	u.executeActions(UnitActionTypeAfterRemove)
@@ -302,24 +294,5 @@ func (u *unit) executeActions(actionType UnitActionType) {
 			RemovalCount:    u.removalCount,
 			RegisterCount:   u.registerCount,
 		})
-	}
-}
-
-func (u *unit) invalidate(t TypeName, entity interface{}) {
-	if entities, ok := u.cached[t]; ok && len(entities) > 0 {
-		cached := []interface{}{}
-		for _, cachedEntity := range entities {
-			ceID, ceOK := id(cachedEntity)
-			eID, eOK := id(entity)
-			if ceOK && eOK {
-				if ceID != eID {
-					cached = append(cached, cachedEntity)
-				} else {
-					u.scope.Counter(cacheInvalidate).Inc(1)
-				}
-			}
-		}
-
-		u.cached[t] = cached
 	}
 }

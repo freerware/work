@@ -23,6 +23,7 @@ import (
 
 	"github.com/freerware/work/v4"
 	"github.com/freerware/work/v4/internal/mock"
+	"github.com/freerware/work/v4/internal/test"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -108,9 +109,9 @@ func (s *BestEffortUnitTestSuite) Setup() {
 	s.cacheInvalidateScopeNameWithTags = fmt.Sprintf("%s%s%s", s.cacheInvalidateScopeName, sep, s.tags)
 
 	// test entities.
-	foo := Foo{ID: 28}
+	foo := test.Foo{ID: 28}
 	fooTypeName := work.TypeNameOf(foo)
-	bar := Bar{ID: "28"}
+	bar := test.Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
@@ -149,9 +150,9 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 }
 
 func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
-	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}, Foo{ID: 1111}}
-	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
-	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
+	foos := []interface{}{test.Foo{ID: 28}, test.Foo{ID: 1992}, test.Foo{ID: 2}, test.Foo{ID: 1111}}
+	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}}
+	fooType, barType := work.TypeNameOf(test.Foo{}), work.TypeNameOf(test.Bar{})
 	return []TableDrivenTest{
 		{
 			name:      "InsertError",
