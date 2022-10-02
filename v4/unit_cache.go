@@ -43,7 +43,7 @@ func (uc *UnitCache) delete(entity interface{}) {
 		if entitiesByID, ok := uc.m.Load(t); ok {
 			if entityMap, ok := entitiesByID.(*sync.Map); ok {
 				entityMap.Delete(id)
-				uc.scope.Counter(cacheInvalidate).Inc(1)
+				uc.scope.Counter(cacheDelete).Inc(1)
 			}
 		}
 	}

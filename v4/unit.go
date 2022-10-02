@@ -39,7 +39,7 @@ const (
 	update          = "update"
 	delete          = "delete"
 	cacheInsert     = "cache.insert"
-	cacheInvalidate = "cache.invalidate"
+	cacheDelete     = "cache.delete"
 )
 
 var (
