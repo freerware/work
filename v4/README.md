@@ -101,19 +101,19 @@ u, err := unit.New(opts...)
 
 <p align="center"><img src="https://user-images.githubusercontent.com/5921929/106403546-191daa80-63e4-11eb-98b5-6b5d1989bacb.gif" width="960"></p>
 
-| Name                             | Type    | Description                                      |
-| -------------------------------- | ------- | ------------------------------------------------ |
-| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.        |
-| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.       |
-| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.    |
-| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.  |
-| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit. |
-| [_PREFIX._]unit.retry.attempt    | counter | The number of retry attempts.                    |
-| [_PREFIX._]unit.insert           | counter | The number of successful inserts performed.      |
-| [_PREFIX._]unit.update           | counter | The number of successful updates performed.      |
-| [_PREFIX._]unit.delete           | counter | The number of successful deletes performed.      |
-| [_PREFIX._]unit.cache.insert     | counter | The number of registered entities cached.        |
-| [_PREFIX._]unit.cache.invalidate | counter | The number of cache invalidations.               |
+| Name                             | Type    | Description                                                  |
+| -------------------------------- | ------- | ------------------------------------------------------------ |
+| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.                    |
+| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.                   |
+| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.                |
+| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.              |
+| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit.             |
+| [_PREFIX._]unit.retry.attempt    | counter | The number of retry attempts.                                |
+| [_PREFIX._]unit.insert           | counter | The number of successful inserts performed.                  |
+| [_PREFIX._]unit.update           | counter | The number of successful updates performed.                  |
+| [_PREFIX._]unit.delete           | counter | The number of successful deletes performed.                  |
+| [_PREFIX._]unit.cache.insert     | counter | The number of registered entities inserted into the cache.   |
+| [_PREFIX._]unit.cache.delete     | counter | The number of registered entities removed from the cache.    |
 
 ### Uniters
 In most circumstances, an application has many aspects that result in the
