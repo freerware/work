@@ -127,6 +127,15 @@ var (
 	RetryMaximumJitter = work.UnitRetryMaximumJitter
 	// RetryType defines the type of retry to perform.
 	RetryType = work.UnitRetryType
+	// InsertFunc defines the function to be used for inserting new
+	// entities in the underlying data store.
+	InsertFunc = work.UnitInsertFunc
+	// UpdateFunc defines the function to be used for updating existing
+	// entities in the underlying data store.
+	UpdateFunc = work.UnitUpdateFunc
+	// DeleteFunc defines the function to be used for deleting existing
+	// entities in the underlying data store.
+	DeleteFunc = work.UnitDeleteFunc
 )
 
 /* Actions. */
@@ -203,3 +212,7 @@ type MapperContext = work.MapperContext
 
 // DataMapper represents a creator, modifier, and deleter of entities.
 type DataMapper = work.DataMapper
+
+// DataMapperFunc represents a data mapper function that performs a single
+// operation, such as insert, update, or delete.
+type DataMapperFunc = work.UnitDataMapperFunc

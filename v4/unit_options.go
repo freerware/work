@@ -16,6 +16,7 @@
 package work
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -37,6 +38,9 @@ type UnitOptions struct {
 	RetryDelay                   time.Duration
 	RetryMaximumJitter           time.Duration
 	RetryType                    UnitRetryDelayType
+	InsertFuncs                  map[TypeName]UnitDataMapperFunc
+	UpdateFuncs                  map[TypeName]UnitDataMapperFunc
+	DeleteFuncs                  map[TypeName]UnitDataMapperFunc
 }
 
 // UnitOption applies an option to the provided configuration.
@@ -65,6 +69,10 @@ const (
 	// Random represents a retry type that utilizes a random delay between retry iterations.
 	UnitRetryDelayTypeRandom
 )
+
+// UnitDataMapperFunc represents a data mapper function that performs a single
+// operation, such as insert, update, or delete.
+type UnitDataMapperFunc func(context.Context, MapperContext, ...interface{}) error
 
 var (
 	// UnitDB specifies the option to provide the database for the work unit.
@@ -304,6 +312,39 @@ var (
 	UnitRetryType = func(retryType UnitRetryDelayType) UnitOption {
 		return func(o *UnitOptions) {
 			o.RetryType = retryType
+		}
+	}
+
+	// UnitInsertFunc defines the function to be used for inserting new
+	// entities in the underlying data store.
+	UnitInsertFunc = func(t TypeName, insertFunc UnitDataMapperFunc) UnitOption {
+		return func(o *UnitOptions) {
+			if o.InsertFuncs == nil {
+				o.InsertFuncs = make(map[TypeName]UnitDataMapperFunc)
+			}
+			o.InsertFuncs[t] = insertFunc
+		}
+	}
+
+	// UnitUpdateFunc defines the function to be used for updating existing
+	// entities in the underlying data store.
+	UnitUpdateFunc = func(t TypeName, updateFunc UnitDataMapperFunc) UnitOption {
+		return func(o *UnitOptions) {
+			if o.UpdateFuncs == nil {
+				o.UpdateFuncs = make(map[TypeName]UnitDataMapperFunc)
+			}
+			o.UpdateFuncs[t] = updateFunc
+		}
+	}
+
+	// UnitDeleteFunc defines the function to be used for deleting existing
+	// entities in the underlying data store.
+	UnitDeleteFunc = func(t TypeName, deleteFunc UnitDataMapperFunc) UnitOption {
+		return func(o *UnitOptions) {
+			if o.DeleteFuncs == nil {
+				o.DeleteFuncs = make(map[TypeName]UnitDataMapperFunc)
+			}
+			o.DeleteFuncs[t] = deleteFunc
 		}
 	}
 )
