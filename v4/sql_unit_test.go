@@ -2,7 +2,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -25,6 +25,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/freerware/work/v4"
 	"github.com/freerware/work/v4/internal/mock"
+	"github.com/freerware/work/v4/internal/test"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -104,9 +105,9 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.deleteScopeNameWithTags = fmt.Sprintf("%s%s%s", s.deleteScopeName, sep, s.tags)
 
 	// test entities.
-	foo := Foo{ID: 28}
+	foo := test.Foo{ID: 28}
 	fooTypeName := work.TypeNameOf(foo)
-	bar := Bar{ID: "28"}
+	bar := test.Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
@@ -149,9 +150,9 @@ func (s *SQLUnitTestSuite) SetupTest() {
 }
 
 func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
-	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}}
-	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
-	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
+	foos := []interface{}{test.Foo{ID: 28}, test.Foo{ID: 1992}, test.Foo{ID: 2}}
+	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}}
+	fooType, barType := work.TypeNameOf(test.Foo{}), work.TypeNameOf(test.Bar{})
 	return []TableDrivenTest{
 		{
 			name:      "TransactionBeginError",

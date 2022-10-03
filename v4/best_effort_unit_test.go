@@ -23,6 +23,7 @@ import (
 
 	"github.com/freerware/work/v4"
 	"github.com/freerware/work/v4/internal/mock"
+	"github.com/freerware/work/v4/internal/test"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -60,6 +61,10 @@ type BestEffortUnitTestSuite struct {
 	updateScopeNameWithTags          string
 	deleteScopeName                  string
 	deleteScopeNameWithTags          string
+	cacheInsertScopeName             string
+	cacheDeleteScopeName             string
+	cacheInsertScopeNameWithTags     string
+	cacheDeleteScopeNameWithTags     string
 	tags                             string
 
 	// suite state.
@@ -98,11 +103,15 @@ func (s *BestEffortUnitTestSuite) Setup() {
 	s.updateScopeNameWithTags = fmt.Sprintf("%s%s%s", s.updateScopeName, sep, s.tags)
 	s.deleteScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.delete")
 	s.deleteScopeNameWithTags = fmt.Sprintf("%s%s%s", s.deleteScopeName, sep, s.tags)
+	s.cacheInsertScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.cache.insert")
+	s.cacheInsertScopeNameWithTags = fmt.Sprintf("%s%s%s", s.cacheInsertScopeName, sep, s.tags)
+	s.cacheDeleteScopeName = fmt.Sprintf("%s.%s", s.scopePrefix, "unit.cache.delete")
+	s.cacheDeleteScopeNameWithTags = fmt.Sprintf("%s%s%s", s.cacheDeleteScopeName, sep, s.tags)
 
 	// test entities.
-	foo := Foo{ID: 28}
+	foo := test.Foo{ID: 28}
 	fooTypeName := work.TypeNameOf(foo)
-	bar := Bar{ID: "28"}
+	bar := test.Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
@@ -141,9 +150,9 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 }
 
 func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
-	foos := []interface{}{Foo{ID: 28}, Foo{ID: 1992}, Foo{ID: 2}, Foo{ID: 1111}}
-	bars := []interface{}{Bar{ID: "ID"}, Bar{ID: "1992"}}
-	fooType, barType := work.TypeNameOf(Foo{}), work.TypeNameOf(Bar{})
+	foos := []interface{}{test.Foo{ID: 28}, test.Foo{ID: 1992}, test.Foo{ID: 2}, test.Foo{ID: 1111}}
+	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}}
+	fooType, barType := work.TypeNameOf(test.Foo{}), work.TypeNameOf(test.Bar{})
 	return []TableDrivenTest{
 		{
 			name:      "InsertError",
@@ -184,9 +193,11 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -231,9 +242,11 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -296,9 +309,11 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -357,9 +372,11 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -430,9 +447,11 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -499,9 +518,11 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa; ouch"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 4)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -583,8 +604,10 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -655,8 +678,10 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -733,8 +758,10 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Timers(), s.rollbackScopeNameWithTags)
@@ -782,11 +809,13 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 4)
+				s.Len(s.scope.Snapshot().Counters(), 6)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.deleteScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},
@@ -884,12 +913,14 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 6)
+				s.Len(s.scope.Snapshot().Counters(), 8)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.deleteScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheInsertScopeNameWithTags)
+				s.Contains(s.scope.Snapshot().Counters(), s.cacheDeleteScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
 			},

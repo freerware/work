@@ -13,21 +13,10 @@
  * limitations under the License.
  */
 
-package work_test
+package work
 
-import (
-	"context"
-)
-
-type TableDrivenTest struct {
-	name         string
-	registers    []interface{}
-	additions    []interface{}
-	alters       []interface{}
-	removals     []interface{}
-	expectations func(ctx context.Context, registers, additions, alters, removals []interface{})
-	ctx          context.Context
-	err          error
-	assertions   func()
-	panics       bool
+// ider represents an object defined by its identity, not by its attributes.
+type ider interface {
+	// ider retrieves the identity for the object.
+	ID() interface{}
 }

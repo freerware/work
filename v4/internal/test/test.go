@@ -13,21 +13,26 @@
  * limitations under the License.
  */
 
-package work_test
+package test
 
-import (
-	"context"
-)
+type Foo struct {
+	ID int
+}
 
-type TableDrivenTest struct {
-	name         string
-	registers    []interface{}
-	additions    []interface{}
-	alters       []interface{}
-	removals     []interface{}
-	expectations func(ctx context.Context, registers, additions, alters, removals []interface{})
-	ctx          context.Context
-	err          error
-	assertions   func()
-	panics       bool
+func (f Foo) Identifier() interface{} { return f.ID }
+
+type Bar struct {
+	ID string
+}
+
+func (b Bar) Identifier() interface{} { return b.ID }
+
+type Baz struct {
+	Identifier string
+}
+
+func (b Baz) ID() interface{} { return b.Identifier }
+
+type Biz struct {
+	Identifier string
 }

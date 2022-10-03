@@ -44,7 +44,7 @@ mocks: mocks-v3 mocks-v4
 
 benchmark: bins
 	@#v4
-	@cd ./v4 && GO111MODULE=on go test -run XXX -bench . && cd ..
+	@cd ./v4/internal/benchmark && GO111MODULE=on go test -run XXX -bench . && cd ../../
 
 demo: bins
 	@docker-compose --file ./docker/docker-compose.yaml up -d

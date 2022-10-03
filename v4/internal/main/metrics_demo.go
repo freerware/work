@@ -1,4 +1,4 @@
-/* Copyright 2021 Freerware
+/* Copyright 2022 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,6 +108,14 @@ func main() {
 	for i := 0; i < saveAttempts; i++ {
 		unit, err := work.NewUnit(o()...)
 		if err != nil {
+			panic(err)
+		}
+
+		registrations := []interface{}{}
+		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
+			registrations = append(registrations, foo{})
+		}
+		if err = unit.Register(registrations...); err != nil {
 			panic(err)
 		}
 

@@ -13,12 +13,13 @@
  * limitations under the License.
  */
 
-package work_test
+package work_benchmark
 
 import (
 	"context"
 	"testing"
 
+	"github.com/freerware/work/v4/internal/test"
 	"github.com/freerware/work/v4/unit"
 )
 
@@ -26,7 +27,7 @@ const EntityCount = 500
 
 func setupEntities() (entities []interface{}) {
 	for idx := 0; idx < EntityCount; idx++ {
-		entities = append(entities, Foo{ID: idx})
+		entities = append(entities, test.Foo{ID: idx})
 	}
 	return
 }
@@ -35,7 +36,7 @@ func setupEntities() (entities []interface{}) {
 func BenchmarkRegister(b *testing.B) {
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
-		unit.TypeNameOf(Foo{}): NoOpDataMapper{},
+		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
 	}
 	b.StopTimer()
 	b.ResetTimer()
@@ -56,7 +57,7 @@ func BenchmarkRegister(b *testing.B) {
 func BenchmarkAdd(b *testing.B) {
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
-		unit.TypeNameOf(Foo{}): NoOpDataMapper{},
+		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
 	}
 	b.StopTimer()
 	b.ResetTimer()
@@ -77,7 +78,7 @@ func BenchmarkAdd(b *testing.B) {
 func BenchmarkAlter(b *testing.B) {
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
-		unit.TypeNameOf(Foo{}): NoOpDataMapper{},
+		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
 	}
 	b.StopTimer()
 	b.ResetTimer()
@@ -98,7 +99,7 @@ func BenchmarkAlter(b *testing.B) {
 func BenchmarkRemove(b *testing.B) {
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
-		unit.TypeNameOf(Foo{}): NoOpDataMapper{},
+		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
 	}
 	b.StopTimer()
 	b.ResetTimer()
@@ -119,7 +120,7 @@ func BenchmarkSave(b *testing.B) {
 	ctx := context.Background()
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
-		unit.TypeNameOf(Foo{}): NoOpDataMapper{},
+		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
 	}
 	b.StopTimer()
 	b.ResetTimer()
@@ -147,4 +148,18 @@ func BenchmarkSave(b *testing.B) {
 			b.StopTimer()
 		}
 	})
+}
+
+type NoOpDataMapper struct{}
+
+func (dm NoOpDataMapper) Insert(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+	return nil
+}
+
+func (dm NoOpDataMapper) Update(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+	return nil
+}
+
+func (dm NoOpDataMapper) Delete(ctx context.Context, mCtx unit.MapperContext, e ...interface{}) error {
+	return nil
 }

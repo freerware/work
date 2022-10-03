@@ -21,6 +21,7 @@ import (
 
 	"github.com/freerware/work/v4"
 	"github.com/freerware/work/v4/internal/mock"
+	"github.com/freerware/work/v4/internal/test"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
@@ -48,16 +49,22 @@ func TestUnitTestSuite(t *testing.T) {
 
 func (s *UnitTestSuite) SetupTest() {
 	// test entities.
-	foo := Foo{ID: 28}
+	foo := test.Foo{ID: 28}
 	fooTypeName := work.TypeNameOf(foo)
-	bar := Bar{ID: "28"}
+	bar := test.Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
+	baz := test.Baz{Identifier: "28"}
+	bazTypeName := work.TypeNameOf(baz)
+	biz := test.Biz{Identifier: "28"}
+	bizTypeName := work.TypeNameOf(biz)
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
 	s.mappers = make(map[work.TypeName]*mock.DataMapper)
 	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
 	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers[bizTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers[bazTypeName] = mock.NewDataMapper(s.mc)
 
 	// construct SUT.
 	dm := make(map[work.TypeName]work.DataMapper)
@@ -114,10 +121,10 @@ func (s *UnitTestSuite) TestUnit_Add_MissingDataMapper() {
 
 	// arrange.
 	entities := []interface{}{
-		Foo{ID: 28},
+		test.Foo{ID: 28},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(Bar{}): &mock.DataMapper{},
+		work.TypeNameOf(test.Bar{}): &mock.DataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -135,8 +142,8 @@ func (s *UnitTestSuite) TestUnit_Add() {
 
 	// arrange.
 	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
+		test.Foo{ID: 28},
+		test.Bar{ID: "28"},
 	}
 
 	// action.
@@ -149,8 +156,8 @@ func (s *UnitTestSuite) TestUnit_Add() {
 func (s *UnitTestSuite) TestUnit_ConcurrentAdd() {
 
 	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
+	foo := test.Foo{ID: 28}
+	bar := test.Bar{ID: "28"}
 
 	// action.
 	var err, err2 error
@@ -187,10 +194,10 @@ func (s *UnitTestSuite) TestUnit_Alter_MissingDataMapper() {
 
 	// arrange.
 	entities := []interface{}{
-		Foo{ID: 28},
+		test.Foo{ID: 28},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(Bar{}): &mock.DataMapper{},
+		work.TypeNameOf(test.Bar{}): &mock.DataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -208,8 +215,8 @@ func (s *UnitTestSuite) TestUnit_Alter() {
 
 	// arrange.
 	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
+		test.Foo{ID: 28},
+		test.Bar{ID: "28"},
 	}
 
 	// action.
@@ -222,8 +229,8 @@ func (s *UnitTestSuite) TestUnit_Alter() {
 func (s *UnitTestSuite) TestUnit_ConcurrentAlter() {
 
 	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
+	foo := test.Foo{ID: 28}
+	bar := test.Bar{ID: "28"}
 
 	// action.
 	var err, err2 error
@@ -260,10 +267,10 @@ func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 
 	// arrange.
 	entities := []interface{}{
-		Bar{ID: "28"},
+		test.Bar{ID: "28"},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(Foo{}): &mock.DataMapper{},
+		work.TypeNameOf(test.Foo{}): &mock.DataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -281,8 +288,8 @@ func (s *UnitTestSuite) TestUnit_Remove() {
 
 	// arrange.
 	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
+		test.Foo{ID: 28},
+		test.Bar{ID: "28"},
 	}
 
 	// action.
@@ -295,8 +302,8 @@ func (s *UnitTestSuite) TestUnit_Remove() {
 func (s *UnitTestSuite) TestUnit_ConcurrentRemove() {
 
 	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
+	foo := test.Foo{ID: 28}
+	bar := test.Bar{ID: "28"}
 
 	// action.
 	var err, err2 error
@@ -333,10 +340,10 @@ func (s *UnitTestSuite) TestUnit_Register_MissingDataMapper() {
 
 	// arrange.
 	entities := []interface{}{
-		Bar{ID: "28"},
+		test.Bar{ID: "28"},
 	}
 	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(Foo{}): &mock.DataMapper{},
+		work.TypeNameOf(test.Foo{}): &mock.DataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -355,8 +362,8 @@ func (s *UnitTestSuite) TestUnit_Register() {
 
 	// arrange.
 	entities := []interface{}{
-		Foo{ID: 28},
-		Bar{ID: "28"},
+		test.Foo{ID: 28},
+		test.Biz{Identifier: "28"},
 	}
 
 	// action.
@@ -369,8 +376,8 @@ func (s *UnitTestSuite) TestUnit_Register() {
 func (s *UnitTestSuite) TestUnit_ConcurrentRegister() {
 
 	// arrange.
-	foo := Foo{ID: 28}
-	bar := Bar{ID: "28"}
+	foo := test.Foo{ID: 28}
+	bar := test.Bar{ID: "28"}
 
 	// action.
 	var err, err2 error
@@ -389,6 +396,60 @@ func (s *UnitTestSuite) TestUnit_ConcurrentRegister() {
 	// assert.
 	s.NoError(err)
 	s.NoError(err2)
+}
+
+func (s *UnitTestSuite) TestUnit_Cache() {
+	// arrange.
+	foo := test.Foo{ID: 28}
+	baz := test.Baz{Identifier: "28"}
+	s.sut.Register(foo, baz)
+
+	// action.
+	cached := s.sut.Cached()
+
+	// assert.
+	cachedFoo, foundFoo := cached.Load(work.TypeNameOf(foo), foo.ID)
+	s.True(foundFoo)
+	s.Equal(foo, cachedFoo)
+	cachedBaz, foundBaz := cached.Load(work.TypeNameOf(baz), baz.Identifier)
+	s.True(foundBaz)
+	s.Equal(baz, cachedBaz)
+}
+
+func (s *UnitTestSuite) TestUnit_Remove_InvalidatesCache() {
+	// arrange.
+	foo := test.Foo{ID: 28}
+	baz := test.Baz{Identifier: "28"}
+	s.sut.Register(foo, baz)
+
+	// action.
+	err := s.sut.Remove(foo)
+
+	// assert.
+	s.NoError(err)
+	cached := s.sut.Cached()
+	_, foundFoo := cached.Load(work.TypeNameOf(foo), foo.ID)
+	s.False(foundFoo)
+	_, foundBaz := cached.Load(work.TypeNameOf(baz), baz.Identifier)
+	s.True(foundBaz)
+}
+
+func (s *UnitTestSuite) TestUnit_Alter_InvalidatesCache() {
+	// arrange.
+	foo := test.Foo{ID: 28}
+	baz := test.Baz{Identifier: "28"}
+	s.sut.Register(foo, baz)
+
+	// action.
+	err := s.sut.Alter(foo)
+
+	// assert.
+	s.NoError(err)
+	cached := s.sut.Cached()
+	_, foundFoo := cached.Load(work.TypeNameOf(foo), foo.ID)
+	s.False(foundFoo)
+	_, foundBaz := cached.Load(work.TypeNameOf(baz), baz.Identifier)
+	s.True(foundBaz)
 }
 
 func (s *UnitTestSuite) TearDownTest() {
