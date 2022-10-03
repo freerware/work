@@ -32,7 +32,7 @@ type UnitCache struct {
 
 var (
 	// ErrUncachableEntity represents the error that is returned when an attempt
-	// to cache an entity with in unresolvable ID occurs.
+	// to cache an entity with an unresolvable ID occurs.
 	ErrUncachableEntity = errors.New("unable to cache entity - does not implement supported interfaces")
 )
 
