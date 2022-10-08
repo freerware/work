@@ -18,6 +18,7 @@ package work
 import (
 	"context"
 	"database/sql"
+	"sync"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -32,15 +33,61 @@ type UnitOptions struct {
 	Scope                        tally.Scope
 	Actions                      map[UnitActionType][]UnitAction
 	DisableDefaultLoggingActions bool
-	DataMappers                  map[TypeName]DataMapper
 	DB                           *sql.DB
 	RetryAttempts                int
 	RetryDelay                   time.Duration
 	RetryMaximumJitter           time.Duration
 	RetryType                    UnitRetryDelayType
 	InsertFuncs                  map[TypeName]UnitDataMapperFunc
+	insertFuncsLen               int
 	UpdateFuncs                  map[TypeName]UnitDataMapperFunc
+	updateFuncsLen               int
 	DeleteFuncs                  map[TypeName]UnitDataMapperFunc
+	deleteFuncsLen               int
+}
+
+func (uo *UnitOptions) totalDataMapperFuncs() int {
+	return uo.insertFuncsLen + uo.updateFuncsLen + uo.deleteFuncsLen
+}
+
+func (uo *UnitOptions) hasDataMapperFuncs() bool {
+	return uo.totalDataMapperFuncs() != 0
+}
+
+func (uo *UnitOptions) insertFuncs() (funcs *sync.Map) {
+	if uo.InsertFuncs == nil {
+		return
+	}
+
+	funcs = &sync.Map{}
+	for t, f := range uo.InsertFuncs {
+		funcs.Store(t, f)
+	}
+	return
+}
+
+func (uo *UnitOptions) updateFuncs() (funcs *sync.Map) {
+	if uo.UpdateFuncs == nil {
+		return
+	}
+
+	funcs = &sync.Map{}
+	for t, f := range uo.UpdateFuncs {
+		funcs.Store(t, f)
+	}
+	return
+}
+
+func (uo *UnitOptions) deleteFuncs() (funcs *sync.Map) {
+	if uo.DeleteFuncs == nil {
+		return
+	}
+
+	funcs = &sync.Map{}
+	for t, f := range uo.DeleteFuncs {
+		funcs.Store(t, f)
+	}
+	return
 }
 
 // UnitOption applies an option to the provided configuration.
@@ -85,10 +132,26 @@ var (
 	// UnitDataMappers specifies the option to provide the data mappers for the work unit.
 	UnitDataMappers = func(dm map[TypeName]DataMapper) UnitOption {
 		return func(o *UnitOptions) {
-			if o.DataMappers == nil {
-				o.DataMappers = make(map[TypeName]DataMapper)
+			if dm == nil || len(dm) == 0 {
+				return
 			}
-			o.DataMappers = dm
+			if o.InsertFuncs == nil {
+				o.InsertFuncs = make(map[TypeName]UnitDataMapperFunc)
+			}
+			if o.UpdateFuncs == nil {
+				o.UpdateFuncs = make(map[TypeName]UnitDataMapperFunc)
+			}
+			if o.DeleteFuncs == nil {
+				o.DeleteFuncs = make(map[TypeName]UnitDataMapperFunc)
+			}
+			for typeName, dataMapper := range dm {
+				o.InsertFuncs[typeName] = dataMapper.Insert
+				o.insertFuncsLen = o.insertFuncsLen + 1
+				o.UpdateFuncs[typeName] = dataMapper.Update
+				o.updateFuncsLen = o.updateFuncsLen + 1
+				o.DeleteFuncs[typeName] = dataMapper.Delete
+				o.deleteFuncsLen = o.deleteFuncsLen + 1
+			}
 		}
 	}
 

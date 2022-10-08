@@ -413,10 +413,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
 				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx:        context.Background(),
-			err:        errors.New("whoa"),
+			err:        errors.New("ouch; whoa"),
 			assertions: func() {},
 		},
 		{
@@ -433,10 +433,10 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil).Times(s.retryCount)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).Times(s.retryCount)
 				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).Times(s.retryCount)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa")).Times(s.retryCount)
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("ouch")).Times(s.retryCount)
 			},
 			ctx: context.Background(),
-			err: errors.New("whoa"),
+			err: errors.New("ouch; whoa"),
 			assertions: func() {
 				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)

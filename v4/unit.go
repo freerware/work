@@ -93,8 +93,10 @@ type unit struct {
 	actions         map[UnitActionType][]UnitAction
 	mutex           sync.RWMutex
 	db              *sql.DB
-	mappers         map[TypeName]DataMapper
 	retryOptions    []retry.Option
+	insertFuncs     *sync.Map
+	updateFuncs     *sync.Map
+	deleteFuncs     *sync.Map
 }
 
 func options(options []UnitOption) UnitOptions {
@@ -151,10 +153,12 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		scope:        options.Scope,
 		actions:      options.Actions,
 		db:           options.DB,
-		mappers:      options.DataMappers,
+		insertFuncs:  options.insertFuncs(),
+		updateFuncs:  options.updateFuncs(),
+		deleteFuncs:  options.deleteFuncs(),
 		retryOptions: retryOptions,
 	}
-	if len(u.mappers) == 0 {
+	if !options.hasDataMapperFuncs() {
 		return nil, ErrNoDataMapper
 	}
 	if u.db != nil {
@@ -183,8 +187,9 @@ func (u *unit) Register(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeRegister)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
-		if _, err = u.mapper(t); err != nil {
-			return
+		if !u.hasDeleteFunc(t) && !u.hasInsertFunc(t) && !u.hasUpdateFunc(t) {
+			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			return ErrMissingDataMapper
 		}
 
 		u.mutex.Lock()
@@ -210,8 +215,9 @@ func (u *unit) Add(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeAdd)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
-		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
-			return
+		if !u.hasDeleteFunc(t) {
+			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			return ErrMissingDataMapper
 		}
 
 		u.mutex.Lock()
@@ -230,8 +236,9 @@ func (u *unit) Alter(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeAlter)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
-		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
-			return
+		if !u.hasUpdateFunc(t) {
+			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			return ErrMissingDataMapper
 		}
 
 		u.mutex.Lock()
@@ -251,8 +258,9 @@ func (u *unit) Remove(entities ...interface{}) (err error) {
 	u.executeActions(UnitActionTypeBeforeRemove)
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
-		if _, err = u.mapper(TypeNameOf(entity)); err != nil {
-			return
+		if !u.hasDeleteFunc(t) {
+			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			return ErrMissingDataMapper
 		}
 
 		u.mutex.Lock()
@@ -268,18 +276,46 @@ func (u *unit) Remove(entities ...interface{}) (err error) {
 	return
 }
 
-func (u *unit) mapper(t TypeName) (DataMapper, error) {
-	u.mutex.RLock()
-	defer func() {
-		u.mutex.RUnlock()
-	}()
-
-	m, ok := u.mappers[t]
-	if !ok {
-		u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
-		return nil, ErrMissingDataMapper
+func (u *unit) insertFunc(t TypeName) (f UnitDataMapperFunc, ok bool) {
+	if val, exists := u.insertFuncs.Load(t); exists {
+		if f, ok = val.(UnitDataMapperFunc); ok {
+			return
+		}
 	}
-	return m, nil
+	return
+}
+
+func (u *unit) hasInsertFunc(t TypeName) (ok bool) {
+	_, ok = u.insertFunc(t)
+	return
+}
+
+func (u *unit) updateFunc(t TypeName) (f UnitDataMapperFunc, ok bool) {
+	if val, exists := u.updateFuncs.Load(t); exists {
+		if f, ok = val.(UnitDataMapperFunc); ok {
+			return
+		}
+	}
+	return
+}
+
+func (u *unit) hasUpdateFunc(t TypeName) (ok bool) {
+	_, ok = u.updateFunc(t)
+	return
+}
+
+func (u *unit) deleteFunc(t TypeName) (f UnitDataMapperFunc, ok bool) {
+	if val, exists := u.deleteFuncs.Load(t); exists {
+		if f, ok = val.(UnitDataMapperFunc); ok {
+			return
+		}
+	}
+	return
+}
+
+func (u *unit) hasDeleteFunc(t TypeName) (ok bool) {
+	_, ok = u.deleteFunc(t)
+	return
 }
 
 func (u *unit) executeActions(actionType UnitActionType) {
