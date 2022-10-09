@@ -47,11 +47,11 @@ var (
 	// ErrMissingDataMapper represents the error that is returned
 	// when attempting to add, alter, remove, or register an entity
 	// that doesn't have a corresponding data mapper.
-	ErrMissingDataMapper = errors.New("missing data mapper for entity")
+	ErrMissingDataMapper = errors.New("missing data mapper or data mapper function for entity")
 
 	// ErrNoDataMapper represents the error that occurs when attempting
 	// to create a work unit without any data mappers.
-	ErrNoDataMapper = errors.New("must have at least one data mapper")
+	ErrNoDataMapper = errors.New("must have at least one data mapper or data mapper function")
 )
 
 // Unit represents an atomic set of entity changes.
