@@ -84,6 +84,42 @@ func (s *UnitOptionsTestSuite) TestUnitDataMappers_NotNil() {
 	s.NotNil(s.sut.DeleteFuncs)
 }
 
+func (s *UnitOptionsTestSuite) TestUnitInsertFunc() {
+	// arrange.
+	t := work.TypeNameOf(test.Foo{})
+	var f work.UnitDataMapperFunc
+
+	// action.
+	work.UnitInsertFunc(t, f)(s.sut)
+
+	// assert.
+	s.NotNil(s.sut.InsertFuncs)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitUpdateFunc() {
+	// arrange.
+	t := work.TypeNameOf(test.Foo{})
+	var f work.UnitDataMapperFunc
+
+	// action.
+	work.UnitUpdateFunc(t, f)(s.sut)
+
+	// assert.
+	s.NotNil(s.sut.UpdateFuncs)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitDeleteFunc() {
+	// arrange.
+	t := work.TypeNameOf(test.Foo{})
+	var f work.UnitDataMapperFunc
+
+	// action.
+	work.UnitDeleteFunc(t, f)(s.sut)
+
+	// assert.
+	s.NotNil(s.sut.DeleteFuncs)
+}
+
 func (s *UnitOptionsTestSuite) TestUnitLogger() {
 	// arrange.
 	c := zap.NewDevelopmentConfig()
