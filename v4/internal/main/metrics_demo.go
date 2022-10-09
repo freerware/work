@@ -49,15 +49,15 @@ func (dm *demoDataMapper) simulate() error {
 	return dm.simulateOperation()
 }
 
-func (dm *demoDataMapper) Insert(ctx context.Context, mCtx work.MapperContext, e ...interface{}) error {
+func (dm *demoDataMapper) Insert(ctx context.Context, mCtx work.UnitMapperContext, e ...interface{}) error {
 	return dm.simulate()
 }
 
-func (dm *demoDataMapper) Update(ctx context.Context, mCtx work.MapperContext, e ...interface{}) error {
+func (dm *demoDataMapper) Update(ctx context.Context, mCtx work.UnitMapperContext, e ...interface{}) error {
 	return dm.simulate()
 }
 
-func (dm *demoDataMapper) Delete(ctx context.Context, mCtx work.MapperContext, e ...interface{}) error {
+func (dm *demoDataMapper) Delete(ctx context.Context, mCtx work.UnitMapperContext, e ...interface{}) error {
 	return dm.simulate()
 }
 
