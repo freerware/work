@@ -49,6 +49,12 @@ For SQL datastores, also enjoy:
 
 ### V4
 
+#### [4.0.0-beta][v4.0.0-beta.4]
+
+- Introduces the work unit cache.
+  - Each time the `Register` method is called, the provided entities will be placed in a cache if deemed eligible (have implemented the `identifierer` or `ider` interfaces).
+  - Entities will be removed from the cache if specified to `Alter` or `Remove`.
+
 #### [4.0.0-beta.3][v4.0.0-beta.3]
 
 - Various dependency upgrades to address vulnerability [alerts][dependabot-alerts].
@@ -162,5 +168,6 @@ how we do things.
 [v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
 [v4.0.0-beta.2]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.2
 [v4.0.0-beta.3]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.3
+[v4.0.0-beta.4]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.4
 [tags]: https://github.com/freerware/work/tags
 [dependabot-alerts]: https://github.com/freerware/work/security/dependabot?q=is%3Aclosed
