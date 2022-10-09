@@ -55,20 +55,17 @@ func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
 
 func (u *sqlUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, additions := range u.additions {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Insert(ctx, mCtx, additions...); err != nil {
-			u.executeActions(UnitActionTypeBeforeRollback)
-			var errRb error
-			if errRb = u.rollback(mCtx.Tx); errRb == nil {
-				u.executeActions(UnitActionTypeAfterRollback)
+		if f, ok := u.insertFunc(typeName); ok {
+			if err = f(ctx, mCtx, additions...); err != nil {
+				u.executeActions(UnitActionTypeBeforeRollback)
+				errRollback := u.rollback(mCtx.Tx)
+				if errRollback == nil {
+					u.executeActions(UnitActionTypeAfterRollback)
+				}
+				err = multierr.Combine(err, errRollback)
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
 			}
-			err = multierr.Combine(err, errRb)
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
 		}
 	}
 	return
@@ -76,20 +73,16 @@ func (u *sqlUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err err
 
 func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, alterations := range u.alterations {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Update(ctx, mCtx, alterations...); err != nil {
-			u.executeActions(UnitActionTypeBeforeRollback)
-			var errRb error
-			if errRb = u.rollback(mCtx.Tx); errRb == nil {
-				u.executeActions(UnitActionTypeAfterRollback)
+		if f, ok := u.updateFunc(typeName); ok {
+			if err = f(ctx, mCtx, alterations...); err != nil {
+				errRollback := u.rollback(mCtx.Tx)
+				if errRollback == nil {
+					u.executeActions(UnitActionTypeAfterRollback)
+				}
+				err = multierr.Combine(err, errRollback)
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
 			}
-			err = multierr.Combine(err, errRb)
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
 		}
 	}
 	return
@@ -97,19 +90,17 @@ func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err err
 
 func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, removals := range u.removals {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Delete(ctx, mCtx, removals...); err != nil {
-			u.executeActions(UnitActionTypeBeforeRollback)
-			var errRb error
-			if errRb = u.rollback(mCtx.Tx); errRb == nil {
-				u.executeActions(UnitActionTypeAfterRollback)
+		if f, ok := u.deleteFunc(typeName); ok {
+			if err = f(ctx, mCtx, removals...); err != nil {
+				u.executeActions(UnitActionTypeBeforeRollback)
+				errRollback := u.rollback(mCtx.Tx)
+				if errRollback == nil {
+					u.executeActions(UnitActionTypeAfterRollback)
+				}
+				err = multierr.Combine(err, errRollback)
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
 			}
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
 		}
 	}
 	return

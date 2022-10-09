@@ -21,6 +21,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/freerware/work/v4"
+	"github.com/freerware/work/v4/internal/mock"
+	"github.com/freerware/work/v4/internal/test"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
 	"go.uber.org/zap"
@@ -60,18 +63,61 @@ func (s *UnitOptionsTestSuite) TestUnitDataMappers_Nil() {
 	work.UnitDataMappers(dm)(s.sut)
 
 	// assert.
-	s.Nil(s.sut.DataMappers)
+	s.Nil(s.sut.InsertFuncs)
+	s.Nil(s.sut.UpdateFuncs)
+	s.Nil(s.sut.DeleteFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitDataMappers_NotNil() {
 	// arrange.
 	dm := make(map[work.TypeName]work.DataMapper)
+	mc := gomock.NewController(s.T())
+	fooTypeName := work.TypeNameOf(test.Foo{})
+	dm[fooTypeName] = mock.NewDataMapper(mc)
 
 	// action.
 	work.UnitDataMappers(dm)(s.sut)
 
 	// assert.
-	s.NotNil(s.sut.DataMappers)
+	s.NotNil(s.sut.InsertFuncs)
+	s.NotNil(s.sut.UpdateFuncs)
+	s.NotNil(s.sut.DeleteFuncs)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitInsertFunc() {
+	// arrange.
+	t := work.TypeNameOf(test.Foo{})
+	var f work.UnitDataMapperFunc
+
+	// action.
+	work.UnitInsertFunc(t, f)(s.sut)
+
+	// assert.
+	s.NotNil(s.sut.InsertFuncs)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitUpdateFunc() {
+	// arrange.
+	t := work.TypeNameOf(test.Foo{})
+	var f work.UnitDataMapperFunc
+
+	// action.
+	work.UnitUpdateFunc(t, f)(s.sut)
+
+	// assert.
+	s.NotNil(s.sut.UpdateFuncs)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitDeleteFunc() {
+	// arrange.
+	t := work.TypeNameOf(test.Foo{})
+	var f work.UnitDataMapperFunc
+
+	// action.
+	work.UnitDeleteFunc(t, f)(s.sut)
+
+	// assert.
+	s.NotNil(s.sut.DeleteFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitLogger() {

@@ -45,14 +45,11 @@ func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx MapperContext
 	//delete successfully inserted entities.
 	u.logger.Debug("attempting to rollback inserted entities", zap.Int("count", u.successfulInsertCount))
 	for typeName, i := range u.successfulInserts {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Delete(ctx, mCtx, i...); err != nil {
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
+		if f, ok := u.deleteFunc(typeName); ok {
+			if err = f(ctx, mCtx, i...); err != nil {
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
+			}
 		}
 	}
 	return nil
@@ -62,14 +59,11 @@ func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx MapperContext
 	//reapply previously registered state for the entities.
 	u.logger.Debug("attempting to rollback updated entities", zap.Int("count", u.successfulUpdateCount))
 	for typeName, r := range u.registered {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Update(ctx, mCtx, r...); err != nil {
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
+		if f, ok := u.updateFunc(typeName); ok {
+			if err = f(ctx, mCtx, r...); err != nil {
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
+			}
 		}
 	}
 	return
@@ -79,14 +73,11 @@ func (u *bestEffortUnit) rollbackDeletes(ctx context.Context, mCtx MapperContext
 	//reinsert successfully deleted entities.
 	u.logger.Debug("attempting to rollback deleted entities", zap.Int("count", u.successfulDeleteCount))
 	for typeName, d := range u.successfulDeletes {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Insert(ctx, mCtx, d...); err != nil {
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
+		if f, ok := u.insertFunc(typeName); ok {
+			if err = f(ctx, mCtx, d...); err != nil {
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
+			}
 		}
 	}
 	return
@@ -129,81 +120,72 @@ func (u *bestEffortUnit) rollback(ctx context.Context, mCtx MapperContext) (err 
 
 func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, additions := range u.additions {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Insert(ctx, mCtx, additions...); err != nil {
-			u.executeActions(UnitActionTypeBeforeRollback)
-			var errRb error
-			if errRb = u.rollback(ctx, mCtx); errRb == nil {
-				u.executeActions(UnitActionTypeAfterRollback)
+		if f, ok := u.insertFunc(typeName); ok {
+			if err = f(ctx, mCtx, additions...); err != nil {
+				u.executeActions(UnitActionTypeBeforeRollback)
+				errRollback := u.rollback(ctx, mCtx)
+				if errRollback == nil {
+					u.executeActions(UnitActionTypeAfterRollback)
+				}
+				err = multierr.Combine(err, errRollback)
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
 			}
-			err = multierr.Combine(err, errRb)
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
+			if _, ok := u.successfulInserts[typeName]; !ok {
+				u.successfulInserts[typeName] = []interface{}{}
+			}
+			u.successfulInserts[typeName] =
+				append(u.successfulInserts[typeName], additions...)
+			u.successfulInsertCount = u.successfulInsertCount + len(additions)
 		}
-		if _, ok := u.successfulInserts[typeName]; !ok {
-			u.successfulInserts[typeName] = []interface{}{}
-		}
-		u.successfulInserts[typeName] =
-			append(u.successfulInserts[typeName], additions...)
-		u.successfulInsertCount = u.successfulInsertCount + len(additions)
 	}
 	return
 }
 
 func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, alterations := range u.alterations {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Update(ctx, mCtx, alterations...); err != nil {
-			u.executeActions(UnitActionTypeBeforeRollback)
-			var errRb error
-			if errRb = u.rollback(ctx, mCtx); errRb == nil {
-				u.executeActions(UnitActionTypeAfterRollback)
+		if f, ok := u.updateFunc(typeName); ok {
+			if err = f(ctx, mCtx, alterations...); err != nil {
+				u.executeActions(UnitActionTypeBeforeRollback)
+				errRollback := u.rollback(ctx, mCtx)
+				if errRollback == nil {
+					u.executeActions(UnitActionTypeAfterRollback)
+				}
+				err = multierr.Combine(err, errRollback)
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
 			}
-			err = multierr.Combine(err, errRb)
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
+			if _, ok := u.successfulUpdates[typeName]; !ok {
+				u.successfulUpdates[typeName] = []interface{}{}
+			}
+			u.successfulUpdates[typeName] =
+				append(u.successfulUpdates[typeName], alterations...)
+			u.successfulUpdateCount = u.successfulUpdateCount + len(alterations)
 		}
-		if _, ok := u.successfulUpdates[typeName]; !ok {
-			u.successfulUpdates[typeName] = []interface{}{}
-		}
-		u.successfulUpdates[typeName] =
-			append(u.successfulUpdates[typeName], alterations...)
-		u.successfulUpdateCount = u.successfulUpdateCount + len(alterations)
 	}
 	return
 }
 
 func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err error) {
 	for typeName, removals := range u.removals {
-		var m DataMapper
-		m, err = u.mapper(typeName)
-		if err != nil {
-			return
-		}
-		if err = m.Delete(ctx, mCtx, removals...); err != nil {
-			u.executeActions(UnitActionTypeBeforeRollback)
-			var errRb error
-			if errRb = u.rollback(ctx, mCtx); errRb == nil {
-				u.executeActions(UnitActionTypeAfterRollback)
+		if f, ok := u.deleteFunc(typeName); ok {
+			if err = f(ctx, mCtx, removals...); err != nil {
+				u.executeActions(UnitActionTypeBeforeRollback)
+				errRollback := u.rollback(ctx, mCtx)
+				if errRollback == nil {
+					u.executeActions(UnitActionTypeAfterRollback)
+				}
+				err = multierr.Combine(err, errRollback)
+				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				return
 			}
-			err = multierr.Combine(err, errRb)
-			u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
-			return
+			if _, ok := u.successfulDeletes[typeName]; !ok {
+				u.successfulDeletes[typeName] = []interface{}{}
+			}
+			u.successfulDeletes[typeName] =
+				append(u.successfulDeletes[typeName], removals...)
+			u.successfulDeleteCount = u.successfulDeleteCount + len(removals)
 		}
-		if _, ok := u.successfulDeletes[typeName]; !ok {
-			u.successfulDeletes[typeName] = []interface{}{}
-		}
-		u.successfulDeletes[typeName] =
-			append(u.successfulDeletes[typeName], removals...)
-		u.successfulDeleteCount = u.successfulDeleteCount + len(removals)
 	}
 	return
 }
