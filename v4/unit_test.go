@@ -36,7 +36,7 @@ type UnitTestSuite struct {
 
 	// mocks.
 	scope   tally.TestScope
-	mappers map[work.TypeName]*mock.DataMapper
+	mappers map[work.TypeName]*mock.UnitDataMapper
 	mc      *gomock.Controller
 
 	// metrics scope names and tags.
@@ -60,14 +60,14 @@ func (s *UnitTestSuite) SetupTest() {
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
-	s.mappers = make(map[work.TypeName]*mock.DataMapper)
-	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
-	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
-	s.mappers[bizTypeName] = mock.NewDataMapper(s.mc)
-	s.mappers[bazTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
+	s.mappers[fooTypeName] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[barTypeName] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[bizTypeName] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[bazTypeName] = mock.NewUnitDataMapper(s.mc)
 
 	// construct SUT.
-	dm := make(map[work.TypeName]work.DataMapper)
+	dm := make(map[work.TypeName]work.UnitDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
@@ -97,7 +97,7 @@ func (s *UnitTestSuite) TestUnit_NewUnit_NoDataMappers() {
 
 	// action.
 	var err error
-	dm := map[work.TypeName]work.DataMapper{}
+	dm := map[work.TypeName]work.UnitDataMapper{}
 	opts := []work.UnitOption{work.UnitDataMappers(dm)}
 	s.sut, err = work.NewUnit(opts...)
 
@@ -123,8 +123,8 @@ func (s *UnitTestSuite) TestUnit_Add_MissingDataMapper() {
 	entities := []interface{}{
 		test.Foo{ID: 28},
 	}
-	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(test.Bar{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.UnitDataMapper{
+		work.TypeNameOf(test.Bar{}): &mock.UnitDataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -196,8 +196,8 @@ func (s *UnitTestSuite) TestUnit_Alter_MissingDataMapper() {
 	entities := []interface{}{
 		test.Foo{ID: 28},
 	}
-	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(test.Bar{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.UnitDataMapper{
+		work.TypeNameOf(test.Bar{}): &mock.UnitDataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -269,8 +269,8 @@ func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 	entities := []interface{}{
 		test.Bar{ID: "28"},
 	}
-	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(test.Foo{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.UnitDataMapper{
+		work.TypeNameOf(test.Foo{}): &mock.UnitDataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
@@ -342,8 +342,8 @@ func (s *UnitTestSuite) TestUnit_Register_MissingDataMapper() {
 	entities := []interface{}{
 		test.Bar{ID: "28"},
 	}
-	mappers := map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(test.Foo{}): &mock.DataMapper{},
+	mappers := map[work.TypeName]work.UnitDataMapper{
+		work.TypeNameOf(test.Foo{}): &mock.UnitDataMapper{},
 	}
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}

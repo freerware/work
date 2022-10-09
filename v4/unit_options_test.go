@@ -57,7 +57,7 @@ func (s *UnitOptionsTestSuite) TestUnitDBOption() {
 
 func (s *UnitOptionsTestSuite) TestUnitDataMappers_Nil() {
 	// arrange.
-	var dm map[work.TypeName]work.DataMapper
+	var dm map[work.TypeName]work.UnitDataMapper
 
 	// action.
 	work.UnitDataMappers(dm)(s.sut)
@@ -70,7 +70,7 @@ func (s *UnitOptionsTestSuite) TestUnitDataMappers_Nil() {
 
 func (s *UnitOptionsTestSuite) TestUnitDataMappers_NotNil() {
 	// arrange.
-	dm := make(map[work.TypeName]work.DataMapper)
+	dm := make(map[work.TypeName]work.UnitDataMapper)
 	mc := gomock.NewController(s.T())
 	fooTypeName := work.TypeNameOf(test.Foo{})
 	dm[fooTypeName] = mock.NewDataMapper(mc)

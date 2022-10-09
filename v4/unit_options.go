@@ -130,7 +130,7 @@ var (
 	}
 
 	// UnitDataMappers specifies the option to provide the data mappers for the work unit.
-	UnitDataMappers = func(dm map[TypeName]DataMapper) UnitOption {
+	UnitDataMappers = func(dm map[TypeName]UnitDataMapper) UnitOption {
 		return func(o *UnitOptions) {
 			if dm == nil || len(dm) == 0 {
 				return

@@ -35,7 +35,7 @@ type UniterTestSuite struct {
 	// mocks.
 	db      *sql.DB
 	_db     sqlmock.Sqlmock
-	mappers map[work.TypeName]*mock.DataMapper
+	mappers map[work.TypeName]*mock.UnitDataMapper
 }
 
 func TestUniterTestSuite(t *testing.T) {
@@ -51,16 +51,16 @@ func (s *UniterTestSuite) SetupTest() {
 	barTypeName := work.TypeNameOf(bar)
 
 	// initialize mocks.
-	s.mappers = make(map[work.TypeName]*mock.DataMapper)
-	s.mappers[fooTypeName] = &mock.DataMapper{}
-	s.mappers[barTypeName] = &mock.DataMapper{}
+	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
+	s.mappers[fooTypeName] = &mock.UnitDataMapper{}
+	s.mappers[barTypeName] = &mock.UnitDataMapper{}
 
 	var err error
 	s.db, s._db, err = sqlmock.New()
 	s.Require().NoError(err)
 
 	// construct SUT.
-	dm := make(map[work.TypeName]work.DataMapper)
+	dm := make(map[work.TypeName]work.UnitDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}

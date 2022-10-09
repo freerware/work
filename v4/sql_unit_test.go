@@ -43,7 +43,7 @@ type SQLUnitTestSuite struct {
 	_db     sqlmock.Sqlmock
 	scope   tally.TestScope
 	mc      *gomock.Controller
-	mappers map[work.TypeName]*mock.DataMapper
+	mappers map[work.TypeName]*mock.UnitDataMapper
 
 	// metrics scope names and tags.
 	scopePrefix                      string
@@ -112,16 +112,16 @@ func (s *SQLUnitTestSuite) Setup() {
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
-	s.mappers = make(map[work.TypeName]*mock.DataMapper)
-	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
-	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
+	s.mappers[fooTypeName] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[barTypeName] = mock.NewUnitDataMapper(s.mc)
 
 	var err error
 	s.db, s._db, err = sqlmock.New()
 	s.Require().NoError(err)
 
 	// construct SUT.
-	dm := make(map[work.TypeName]work.DataMapper)
+	dm := make(map[work.TypeName]work.UnitDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}
