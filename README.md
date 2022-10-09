@@ -49,7 +49,7 @@ For SQL datastores, also enjoy:
 
 ### V4
 
-#### [4.0.0-beta][v4.0.0-beta.4]
+#### [4.0.0-beta.4][v4.0.0-beta.4]
 
 - Introduces the work unit cache.
   - Each time the `Register` method is called, the provided entities will be placed in a cache if deemed eligible (have implemented the `identifierer` or `ider` interfaces).
