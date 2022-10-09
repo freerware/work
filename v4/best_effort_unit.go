@@ -123,11 +123,11 @@ func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (
 		if f, ok := u.insertFunc(typeName); ok {
 			if err = f(ctx, mCtx, additions...); err != nil {
 				u.executeActions(UnitActionTypeBeforeRollback)
-				errorRollback := u.rollback(ctx, mCtx)
-				if errorRollback == nil {
+				errRollback := u.rollback(ctx, mCtx)
+				if errRollback == nil {
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
-				err = multierr.Combine(err, errorRollback)
+				err = multierr.Combine(err, errRollback)
 				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 				return
 			}
@@ -147,11 +147,11 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (
 		if f, ok := u.updateFunc(typeName); ok {
 			if err = f(ctx, mCtx, alterations...); err != nil {
 				u.executeActions(UnitActionTypeBeforeRollback)
-				errorRollback := u.rollback(ctx, mCtx)
-				if errorRollback == nil {
+				errRollback := u.rollback(ctx, mCtx)
+				if errRollback == nil {
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
-				err = multierr.Combine(err, errorRollback)
+				err = multierr.Combine(err, errRollback)
 				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 				return
 			}
@@ -171,11 +171,11 @@ func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (
 		if f, ok := u.deleteFunc(typeName); ok {
 			if err = f(ctx, mCtx, removals...); err != nil {
 				u.executeActions(UnitActionTypeBeforeRollback)
-				errorRollback := u.rollback(ctx, mCtx)
-				if errorRollback == nil {
+				errRollback := u.rollback(ctx, mCtx)
+				if errRollback == nil {
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
-				err = multierr.Combine(err, errorRollback)
+				err = multierr.Combine(err, errRollback)
 				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
 				return
 			}
