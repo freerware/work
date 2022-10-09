@@ -208,7 +208,7 @@ var (
 /* Data Mappers. */
 
 // MapperContext represents the executional context for a data mapper.
-type MapperContext = work.MapperContext
+type MapperContext = work.UnitMapperContext
 
 // DataMapper represents a creator, modifier, and deleter of entities.
 type DataMapper = work.UnitDataMapper

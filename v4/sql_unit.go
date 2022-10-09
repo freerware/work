@@ -53,7 +53,7 @@ func (u *sqlUnit) rollback(tx *sql.Tx) (err error) {
 	return
 }
 
-func (u *sqlUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *sqlUnit) applyInserts(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	for typeName, additions := range u.additions {
 		if f, ok := u.insertFunc(typeName); ok {
 			if err = f(ctx, mCtx, additions...); err != nil {
@@ -71,7 +71,7 @@ func (u *sqlUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err err
 	return
 }
 
-func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	for typeName, alterations := range u.alterations {
 		if f, ok := u.updateFunc(typeName); ok {
 			if err = f(ctx, mCtx, alterations...); err != nil {
@@ -88,7 +88,7 @@ func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err err
 	return
 }
 
-func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	for typeName, removals := range u.removals {
 		if f, ok := u.deleteFunc(typeName); ok {
 			if err = f(ctx, mCtx, removals...); err != nil {
@@ -109,7 +109,7 @@ func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err err
 func (u *sqlUnit) save(ctx context.Context) (err error) {
 	//start transaction.
 	tx, err := u.db.BeginTx(ctx, nil)
-	mCtx := MapperContext{Tx: tx}
+	mCtx := UnitMapperContext{Tx: tx}
 	if err != nil {
 		// consider a failure to begin transaction as successful rollback,
 		// since none of the desired changes are applied.

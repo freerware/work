@@ -17,6 +17,6 @@ package work
 
 import "database/sql"
 
-type MapperContext struct {
+type UnitMapperContext struct {
 	Tx *sql.Tx
 }

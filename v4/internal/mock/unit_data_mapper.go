@@ -35,7 +35,7 @@ func (m *UnitDataMapper) EXPECT() *UnitDataMapperMockRecorder {
 }
 
 // Insert mocks base method
-func (m *UnitDataMapper) Insert(arg0 context.Context, arg1 v4.MapperContext, arg2 ...interface{}) error {
+func (m *UnitDataMapper) Insert(arg0 context.Context, arg1 v4.UnitMapperContext, arg2 ...interface{}) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -54,7 +54,7 @@ func (mr *UnitDataMapperMockRecorder) Insert(arg0, arg1 interface{}, arg2 ...int
 }
 
 // Update mocks base method
-func (m *UnitDataMapper) Update(arg0 context.Context, arg1 v4.MapperContext, arg2 ...interface{}) error {
+func (m *UnitDataMapper) Update(arg0 context.Context, arg1 v4.UnitMapperContext, arg2 ...interface{}) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -73,7 +73,7 @@ func (mr *UnitDataMapperMockRecorder) Update(arg0, arg1 interface{}, arg2 ...int
 }
 
 // Delete mocks base method
-func (m *UnitDataMapper) Delete(arg0 context.Context, arg1 v4.MapperContext, arg2 ...interface{}) error {
+func (m *UnitDataMapper) Delete(arg0 context.Context, arg1 v4.UnitMapperContext, arg2 ...interface{}) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {

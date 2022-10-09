@@ -119,7 +119,7 @@ const (
 
 // UnitDataMapperFunc represents a data mapper function that performs a single
 // operation, such as insert, update, or delete.
-type UnitDataMapperFunc func(context.Context, MapperContext, ...interface{}) error
+type UnitDataMapperFunc func(context.Context, UnitMapperContext, ...interface{}) error
 
 var (
 	// UnitDB specifies the option to provide the database for the work unit.
