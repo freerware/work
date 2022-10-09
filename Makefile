@@ -37,7 +37,7 @@ mocks-v3:
 
 mocks-v4:
 	@echo making v4 mocks...
-	@mockgen -source=v4/data_mapper.go -destination=v4/internal/mock/data_mapper.go -package=mock -mock_names=DataMapper=DataMapper
+	@mockgen -source=v4/unit_data_mapper.go -destination=v4/internal/mock/unit_data_mapper.go -package=mock -mock_names=UnitDataMapper=UnitDataMapper
 	@echo done!
 
 mocks: mocks-v3 mocks-v4

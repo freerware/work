@@ -37,7 +37,7 @@ type BestEffortUnitTestSuite struct {
 	sut work.Unit
 
 	// mocks.
-	mappers map[work.TypeName]*mock.DataMapper
+	mappers map[work.TypeName]*mock.UnitDataMapper
 	scope   tally.TestScope
 	mc      *gomock.Controller
 
@@ -116,12 +116,12 @@ func (s *BestEffortUnitTestSuite) Setup() {
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
-	s.mappers = make(map[work.TypeName]*mock.DataMapper)
-	s.mappers[fooTypeName] = mock.NewDataMapper(s.mc)
-	s.mappers[barTypeName] = mock.NewDataMapper(s.mc)
+	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
+	s.mappers[fooTypeName] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[barTypeName] = mock.NewUnitDataMapper(s.mc)
 
 	// construct SUT.
-	dm := make(map[work.TypeName]work.DataMapper)
+	dm := make(map[work.TypeName]work.UnitDataMapper)
 	for t, m := range s.mappers {
 		dm[t] = m
 	}

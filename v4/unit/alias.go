@@ -211,7 +211,7 @@ var (
 type MapperContext = work.MapperContext
 
 // DataMapper represents a creator, modifier, and deleter of entities.
-type DataMapper = work.DataMapper
+type DataMapper = work.UnitDataMapper
 
 // DataMapperFunc represents a data mapper function that performs a single
 // operation, such as insert, update, or delete.
