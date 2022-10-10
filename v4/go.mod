@@ -1,6 +1,6 @@
 module github.com/freerware/work/v4
 
-go 1.15
+go 1.18
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
