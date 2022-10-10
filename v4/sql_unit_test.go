@@ -458,7 +458,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
 				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, _e ...interface{}) { panic("whoa") },
+				)
 			},
 			ctx:        context.Background(),
 			assertions: func() {},
@@ -476,7 +478,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
 				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("whoa") })
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, _e ...interface{}) { panic("whoa") },
+				)
 			},
 			ctx: context.Background(),
 			assertions: func() {
@@ -500,7 +504,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
 				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("ouch") })
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, _e ...interface{}) { panic("whoa") },
+				)
 			},
 			ctx:        context.Background(),
 			assertions: func() {},
@@ -518,7 +524,9 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), additions[1]).Return(nil)
 				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
 				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
-				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(func() { panic("ouch") })
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, _e ...interface{}) { panic("whoa") },
+				)
 			},
 			ctx: context.Background(),
 			assertions: func() {
@@ -721,7 +729,6 @@ func (s *SQLUnitTestSuite) TearDown() {
 	defer func() { s.isSetup, s.isTornDown = false, true }()
 
 	s.db.Close()
-	s.mc.Finish()
 	s.sut = nil
 	s.scope = nil
 }
