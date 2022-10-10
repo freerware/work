@@ -19,7 +19,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/uber-go/tally"
+	"github.com/uber-go/tally/v4"
 )
 
 // UnitCache represents the cache that the work unit manipulates as a result

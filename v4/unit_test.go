@@ -24,7 +24,7 @@ import (
 	"github.com/freerware/work/v4/internal/test"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
-	"github.com/uber-go/tally"
+	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
 )
 
