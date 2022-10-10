@@ -116,7 +116,7 @@ func (s *UnitTestSuite) TestUnit_NewUnit_WithDataMappers() {
 	s.sut, err = work.NewUnit(opts...)
 
 	// assert.
-	s.NoError(err, work.ErrNoDataMapper.Error())
+	s.NoError(err)
 	s.NotNil(s.sut)
 }
 
@@ -143,7 +143,7 @@ func (s *UnitTestSuite) TestUnit_NewUnit_WithSomeDataMapperFuncs() {
 	s.sut, err = work.NewUnit(opts...)
 
 	// assert.
-	s.NoError(err, work.ErrNoDataMapper.Error())
+	s.NoError(err)
 	s.NotNil(s.sut)
 }
 
@@ -161,7 +161,7 @@ func (s *UnitTestSuite) TestUnit_NewUnit_WithAllDataMapperFuncs() {
 	s.sut, err = work.NewUnit(opts...)
 
 	// assert.
-	s.NoError(err, work.ErrNoDataMapper.Error())
+	s.NoError(err)
 	s.NotNil(s.sut)
 }
 
