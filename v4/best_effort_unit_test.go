@@ -966,7 +966,6 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 func (s *BestEffortUnitTestSuite) TearDown() {
 	defer func() { s.isSetup, s.isTornDown = false, true }()
 
-	s.mc.Finish()
 	s.sut = nil
 	s.scope = nil
 }

@@ -514,5 +514,4 @@ func (s *UnitTestSuite) TestUnit_Alter_InvalidatesCache() {
 
 func (s *UnitTestSuite) TearDownTest() {
 	s.sut = nil
-	s.mc.Finish()
 }
