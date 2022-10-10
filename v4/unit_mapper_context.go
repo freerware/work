@@ -17,6 +17,11 @@ package work
 
 import "database/sql"
 
-type MapperContext struct {
+// UnitMapperContext represents the additional context provided to data mappers
+// and data mapper functions to help facilitate the mapping process.
+type UnitMapperContext struct {
+	// Tx is the open transaction leveraged for SQL-related data mapping
+	// operations. This transaction will be nil unless the work.UnitDB option
+	// is used.
 	Tx *sql.Tx
 }

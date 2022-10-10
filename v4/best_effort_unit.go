@@ -41,7 +41,7 @@ type bestEffortUnit struct {
 	successfulDeleteCount int
 }
 
-func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//delete successfully inserted entities.
 	u.logger.Debug("attempting to rollback inserted entities", zap.Int("count", u.successfulInsertCount))
 	for typeName, i := range u.successfulInserts {
@@ -55,7 +55,7 @@ func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx MapperContext
 	return nil
 }
 
-func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//reapply previously registered state for the entities.
 	u.logger.Debug("attempting to rollback updated entities", zap.Int("count", u.successfulUpdateCount))
 	for typeName, r := range u.registered {
@@ -69,7 +69,7 @@ func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx MapperContext
 	return
 }
 
-func (u *bestEffortUnit) rollbackDeletes(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) rollbackDeletes(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//reinsert successfully deleted entities.
 	u.logger.Debug("attempting to rollback deleted entities", zap.Int("count", u.successfulDeleteCount))
 	for typeName, d := range u.successfulDeletes {
@@ -83,7 +83,7 @@ func (u *bestEffortUnit) rollbackDeletes(ctx context.Context, mCtx MapperContext
 	return
 }
 
-func (u *bestEffortUnit) rollback(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) rollback(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//setup timer.
 	stop := u.scope.Timer(rollback).Start().Stop
 
@@ -118,7 +118,7 @@ func (u *bestEffortUnit) rollback(ctx context.Context, mCtx MapperContext) (err 
 	return
 }
 
-func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	for typeName, additions := range u.additions {
 		if f, ok := u.insertFunc(typeName); ok {
 			if err = f(ctx, mCtx, additions...); err != nil {
@@ -142,7 +142,7 @@ func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx MapperContext) (
 	return
 }
 
-func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	for typeName, alterations := range u.alterations {
 		if f, ok := u.updateFunc(typeName); ok {
 			if err = f(ctx, mCtx, alterations...); err != nil {
@@ -166,7 +166,7 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx MapperContext) (
 	return
 }
 
-func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx MapperContext) (err error) {
+func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	for typeName, removals := range u.removals {
 		if f, ok := u.deleteFunc(typeName); ok {
 			if err = f(ctx, mCtx, removals...); err != nil {
@@ -205,21 +205,21 @@ func (u *bestEffortUnit) resetSuccessCounts() {
 func (u *bestEffortUnit) save(ctx context.Context) (err error) {
 	//insert newly added entities.
 	u.executeActions(UnitActionTypeBeforeInserts)
-	if err = u.applyInserts(ctx, MapperContext{}); err != nil {
+	if err = u.applyInserts(ctx, UnitMapperContext{}); err != nil {
 		return
 	}
 	u.executeActions(UnitActionTypeAfterInserts)
 
 	//update altered entities.
 	u.executeActions(UnitActionTypeBeforeUpdates)
-	if err = u.applyUpdates(ctx, MapperContext{}); err != nil {
+	if err = u.applyUpdates(ctx, UnitMapperContext{}); err != nil {
 		return
 	}
 	u.executeActions(UnitActionTypeAfterUpdates)
 
 	//delete removed entities.
 	u.executeActions(UnitActionTypeBeforeDeletes)
-	if err = u.applyDeletes(ctx, MapperContext{}); err != nil {
+	if err = u.applyDeletes(ctx, UnitMapperContext{}); err != nil {
 		return
 	}
 	u.executeActions(UnitActionTypeAfterDeletes)
@@ -239,7 +239,7 @@ func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
 		stop()
 		if r := recover(); r != nil {
 			u.executeActions(UnitActionTypeBeforeRollback)
-			if err = u.rollback(ctx, MapperContext{}); err == nil {
+			if err = u.rollback(ctx, UnitMapperContext{}); err == nil {
 				u.executeActions(UnitActionTypeAfterRollback)
 			}
 			err = multierr.Combine(

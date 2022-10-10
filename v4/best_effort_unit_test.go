@@ -552,7 +552,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter delete panic.
 				applyDelete := s.mappers[fooType].
 					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				)
@@ -591,7 +591,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter delete panic.
 				applyDelete := s.mappers[fooType].
 					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				)
@@ -637,7 +637,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter delete panic.
 				s.mappers[fooType].
 					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				)
@@ -670,7 +670,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter delete panic.
 				s.mappers[fooType].
 					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				)
@@ -706,7 +706,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter update panic during roll back.
 				s.mappers[fooType].EXPECT().
 					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[1]}).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				).After(applyFooUpdate)
@@ -714,7 +714,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter delete panic.
 				s.mappers[fooType].
 					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				)
@@ -742,7 +742,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter update panic during roll back.
 				s.mappers[fooType].EXPECT().
 					Update(ctx, gomock.Any(), []interface{}{registers[0], registers[1]}).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				).After(applyFooUpdate)
@@ -750,7 +750,7 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 				// arrange - encounter delete panic.
 				s.mappers[fooType].
 					EXPECT().Delete(ctx, gomock.Any(), removals[0]).Do(
-					func(_ctx context.Context, _mCtx work.MapperContext, e ...interface{}) {
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) {
 						panic("whoa")
 					},
 				)

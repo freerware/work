@@ -73,7 +73,7 @@ func (s *UnitOptionsTestSuite) TestUnitDataMappers_NotNil() {
 	dm := make(map[work.TypeName]work.UnitDataMapper)
 	mc := gomock.NewController(s.T())
 	fooTypeName := work.TypeNameOf(test.Foo{})
-	dm[fooTypeName] = mock.NewDataMapper(mc)
+	dm[fooTypeName] = mock.NewUnitDataMapper(mc)
 
 	// action.
 	work.UnitDataMappers(dm)(s.sut)
