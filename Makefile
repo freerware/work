@@ -47,7 +47,9 @@ benchmark: bins
 	@cd ./v4/internal/benchmark && GO111MODULE=on go test -run XXX -bench . && cd ../../
 
 demo: bins
+	ifeq ($(shell uname -s),Darwin)
+		@open "http://localhost:3001"
+	endif
 	@docker-compose --file ./docker/docker-compose.yaml up -d
-	@open "http://localhost:3001"
 	@echo demoing...
 	@cd v4/internal/main && go run metrics_demo.go && cd ../../../
