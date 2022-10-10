@@ -105,6 +105,66 @@ func (s *UnitTestSuite) TestUnit_NewUnit_NoDataMappers() {
 	s.EqualError(err, work.ErrNoDataMapper.Error())
 }
 
+func (s *UnitTestSuite) TestUnit_NewUnit_WithDataMappers() {
+
+	// action.
+	var err error
+	mappers := map[work.TypeName]work.UnitDataMapper{
+		work.TypeNameOf(test.Bar{}): &mock.UnitDataMapper{},
+	}
+	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
+	s.sut, err = work.NewUnit(opts...)
+
+	// assert.
+	s.NoError(err)
+	s.NotNil(s.sut)
+}
+
+func (s *UnitTestSuite) TestUnit_NewUnit_NoDataMapperFunctions() {
+
+	// action.
+	var err error
+	s.sut, err = work.NewUnit()
+
+	// assert.
+	s.EqualError(err, work.ErrNoDataMapper.Error())
+}
+
+func (s *UnitTestSuite) TestUnit_NewUnit_WithSomeDataMapperFuncs() {
+
+	// action.
+	var err error
+	mapper := &mock.UnitDataMapper{}
+	t := work.TypeNameOf(test.Bar{})
+	opts := []work.UnitOption{
+		work.UnitInsertFunc(t, mapper.Insert),
+		work.UnitUpdateFunc(t, mapper.Update),
+	}
+	s.sut, err = work.NewUnit(opts...)
+
+	// assert.
+	s.NoError(err)
+	s.NotNil(s.sut)
+}
+
+func (s *UnitTestSuite) TestUnit_NewUnit_WithAllDataMapperFuncs() {
+
+	// action.
+	var err error
+	mapper := &mock.UnitDataMapper{}
+	t := work.TypeNameOf(test.Bar{})
+	opts := []work.UnitOption{
+		work.UnitInsertFunc(t, mapper.Insert),
+		work.UnitUpdateFunc(t, mapper.Update),
+		work.UnitDeleteFunc(t, mapper.Delete),
+	}
+	s.sut, err = work.NewUnit(opts...)
+
+	// assert.
+	s.NoError(err)
+	s.NotNil(s.sut)
+}
+
 func (s *UnitTestSuite) TestUnit_Add_Empty() {
 
 	// arrange.

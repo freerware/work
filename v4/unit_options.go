@@ -386,6 +386,7 @@ var (
 				o.InsertFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
 			o.InsertFuncs[t] = insertFunc
+			o.insertFuncsLen = o.insertFuncsLen + 1
 		}
 	}
 
@@ -397,6 +398,7 @@ var (
 				o.UpdateFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
 			o.UpdateFuncs[t] = updateFunc
+			o.updateFuncsLen = o.updateFuncsLen + 1
 		}
 	}
 
@@ -408,6 +410,7 @@ var (
 				o.DeleteFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
 			o.DeleteFuncs[t] = deleteFunc
+			o.deleteFuncsLen = o.deleteFuncsLen + 1
 		}
 	}
 )
