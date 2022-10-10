@@ -95,7 +95,7 @@ func o() []work.UnitOption {
 }
 
 func id() int {
-	return rand.Intn(maximumLatencyMilliseconds)
+	return rand.Intn(maximumEntitiesPerOperation)
 }
 
 /* Demo */
