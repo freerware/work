@@ -20,7 +20,7 @@ import (
 
 	"github.com/freerware/work/v4/internal/test"
 	"github.com/stretchr/testify/suite"
-	"github.com/uber-go/tally"
+	"github.com/uber-go/tally/v4"
 )
 
 type UnitCacheTestSuite struct {

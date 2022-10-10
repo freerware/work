@@ -25,8 +25,8 @@ import (
 	"github.com/freerware/work/v4"
 	"github.com/freerware/work/v4/internal/test"
 	"github.com/freerware/work/v4/unit"
-	"github.com/uber-go/tally"
-	tstatsd "github.com/uber-go/tally/statsd"
+	"github.com/uber-go/tally/v4"
+	tstatsd "github.com/uber-go/tally/v4/statsd"
 )
 
 /* Data Mapper Definition */

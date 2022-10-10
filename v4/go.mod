@@ -8,7 +8,7 @@ require (
 	github.com/cactus/go-statsd-client v3.1.0+incompatible
 	github.com/golang/mock v1.6.0
 	github.com/stretchr/testify v1.8.0
-	github.com/uber-go/tally v3.5.0+incompatible
+	github.com/uber-go/tally/v4 v4.1.3
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.23.0
 )
@@ -20,6 +20,5 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/twmb/murmur3 v1.1.6 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

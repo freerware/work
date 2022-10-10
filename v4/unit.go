@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/uber-go/tally"
+	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
 )
 
