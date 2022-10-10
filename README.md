@@ -49,6 +49,13 @@ For SQL datastores, also enjoy:
 
 ### V4
 
+#### [4.0.0-beta.5][v4.0.0-beta.5]
+
+- Introduce `unit.InsertFunc`, `unit.UpdateFunc`, and `unit.DeleteFunc` options.
+- Refactored internals to to use `unit.DataMapperFunc` instead of `unit.DataMapper`.
+- Removed `DataMappers` property from `unit.Options`.
+- Renamed `work.DataMapper` to `work.UnitDataMapper` for consistency.
+
 #### [4.0.0-beta.4][v4.0.0-beta.4]
 
 - Introduces the work unit cache.
@@ -169,5 +176,6 @@ how we do things.
 [v4.0.0-beta.2]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.2
 [v4.0.0-beta.3]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.3
 [v4.0.0-beta.4]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.4
+[v4.0.0-beta.5]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.5
 [tags]: https://github.com/freerware/work/tags
 [dependabot-alerts]: https://github.com/freerware/work/security/dependabot?q=is%3Aclosed
