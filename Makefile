@@ -17,13 +17,13 @@ bins-v4:
 
 bins: bins-v3 bins-v4
 
-tests-v3: bins
+tests-v3: bins-v3
 	@echo testing v3...
 	@cd ./v3 && GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=work.coverprofile github.com/freerware/work/v3 && cd ..
 	@echo done!
 
-tests-v4: bins
-	@echo testing v3...
+tests-v4: bins-v4
+	@echo testing v4...
 	@cd ./v4 && GO111MODULE=on go test -v -race -covermode=atomic -coverprofile=work.coverprofile github.com/freerware/work/v4 && cd ..
 	@echo done!
 
