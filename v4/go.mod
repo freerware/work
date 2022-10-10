@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/avast/retry-go/v4 v4.1.0
 	github.com/cactus/go-statsd-client v3.1.0+incompatible
 	github.com/golang/mock v1.6.0
 	github.com/stretchr/testify v1.8.0
