@@ -19,7 +19,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/avast/retry-go"
+	"github.com/avast/retry-go/v4"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )

@@ -421,7 +421,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_Panic() {
 	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
 	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
 	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).
-		Do(func() { panic("whoa") })
+		Do(func(_t *sql.Tx, _e ...interface{}) { panic("whoa") })
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
@@ -462,7 +462,7 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save_PanicAndRollbackError() {
 	s.mappers[fooType].EXPECT().Update(gomock.Any(), updatedEntities[0]).Return(nil)
 	s.mappers[barType].EXPECT().Update(gomock.Any(), updatedEntities[1]).Return(nil)
 	s.mappers[fooType].EXPECT().Delete(gomock.Any(), removedEntities[0]).
-		Do(func() { panic("whoa") })
+		Do(func(_t *sql.Tx, _e ...interface{}) { panic("whoa") })
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })

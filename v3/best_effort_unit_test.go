@@ -440,7 +440,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_Panic() {
 	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
 	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
 	s.mappers[fooType].
-		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
+		EXPECT().Delete(removedEntities[0]).
+		Do(func(_e ...interface{}) { panic("whoa") })
 
 	// arrange - rollback invocations.
 	s.mappers[fooType].EXPECT().Delete(addedEntities[0]).Return(nil)
@@ -492,7 +493,8 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackError(
 	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
 	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
 	s.mappers[fooType].
-		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
+		EXPECT().Delete(removedEntities[0]).
+		Do(func(_e ...interface{}) { panic("whoa") })
 
 	// arrange - rollback invocations.
 	s.mappers[fooType].EXPECT().
@@ -539,12 +541,13 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save_PanicAndRollbackPanic(
 	s.mappers[fooType].EXPECT().Update(updatedEntities[0]).Return(nil)
 	s.mappers[barType].EXPECT().Update(updatedEntities[1]).Return(nil)
 	s.mappers[fooType].
-		EXPECT().Delete(removedEntities[0]).Do(func() { panic("whoa") })
+		EXPECT().Delete(removedEntities[0]).
+		Do(func(_e ...interface{}) { panic("whoa") })
 
 	// arrange - rollback invocations.
 	s.mappers[fooType].
 		EXPECT().Update(registeredEntities[0], registeredEntities[1]).
-		Do(func() { panic("whoa") })
+		Do(func(_e ...interface{}) { panic("whoa") })
 
 	// action + assert.
 	s.Require().Panics(func() { s.sut.Save() })
