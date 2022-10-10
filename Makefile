@@ -48,6 +48,13 @@ benchmark: bins
 
 demo: bins
 	@docker-compose --file ./docker/docker-compose.yaml up -d
-	@open "http://localhost:3001"
+	@echo "+--------------------------------------------------+"
+	@echo "|                  INSTRUCTIONS                    |"
+	@echo "+--------------------------------------------------+"
+	@echo "| 1. open browser window for http://localhost:3001 |"
+	@echo "| 2. enter credentials: u=admin p=admin            |"
+	@echo "| 3. change password                               |"
+	@echo "| 4. open Unit Dashboard                           |"
+	@echo "+--------------------------------------------------+"
 	@echo demoing...
 	@cd v4/internal/main && go run metrics_demo.go && cd ../../../

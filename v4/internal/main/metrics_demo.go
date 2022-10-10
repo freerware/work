@@ -23,6 +23,8 @@ import (
 
 	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/freerware/work/v4"
+	"github.com/freerware/work/v4/internal/test"
+	"github.com/freerware/work/v4/unit"
 	"github.com/uber-go/tally"
 	tstatsd "github.com/uber-go/tally/statsd"
 )
@@ -78,10 +80,10 @@ func setupScope() tally.Scope {
 	return scope
 }
 
-func setupDataMapper() map[work.TypeName]work.DataMapper {
+func setupDataMapper() map[work.TypeName]unit.DataMapper {
 	dm := &demoDataMapper{}
-	return map[work.TypeName]work.DataMapper{
-		work.TypeNameOf(foo{}): dm,
+	return map[work.TypeName]unit.DataMapper{
+		work.TypeNameOf(test.Foo{ID: id()}): dm,
 	}
 }
 
@@ -92,9 +94,9 @@ func o() []work.UnitOption {
 	}
 }
 
-/* Entity Definition */
-
-type foo struct{}
+func id() int {
+	return rand.Intn(maximumEntitiesPerOperation)
+}
 
 /* Demo */
 
@@ -113,7 +115,7 @@ func main() {
 
 		registrations := []interface{}{}
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
-			registrations = append(registrations, foo{})
+			registrations = append(registrations, test.Foo{ID: id()})
 		}
 		if err = unit.Register(registrations...); err != nil {
 			panic(err)
@@ -121,7 +123,7 @@ func main() {
 
 		additions := []interface{}{}
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
-			additions = append(additions, foo{})
+			additions = append(additions, test.Foo{ID: id()})
 		}
 		if err = unit.Add(additions...); err != nil {
 			panic(err)
@@ -129,7 +131,7 @@ func main() {
 
 		alters := []interface{}{}
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
-			alters = append(alters, foo{})
+			alters = append(alters, test.Foo{ID: id()})
 		}
 		if err = unit.Alter(alters...); err != nil {
 			panic(err)
@@ -137,7 +139,7 @@ func main() {
 
 		removals := []interface{}{}
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
-			removals = append(removals, foo{})
+			removals = append(removals, test.Foo{ID: id()})
 		}
 		if err = unit.Remove(removals...); err != nil {
 			panic(err)

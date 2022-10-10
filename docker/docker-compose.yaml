@@ -4,14 +4,14 @@ services:
     image: graphiteapp/graphite-statsd
     restart: always
     ports:
-      - '80:80'
+      - '81:80'
       - '2003-2004:2003-2004'
       - '2023-2024:2023-2024'
       - '8125:8125/udp'
       - '8126:8126'
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:7.3.7
     restart: always
     ports:
       - '3001:3000'
