@@ -1,4 +1,4 @@
-name: Example for minimal setup
+name: CB
 on: [push]
 
 permissions:
@@ -6,8 +6,7 @@ permissions:
   deployments: write
 
 jobs:
-  benchmark:
-    name: Benchmark
+  benchmarks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
