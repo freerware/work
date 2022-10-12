@@ -3,14 +3,11 @@ name: CI
 on: [push]
 
 jobs:
-
   tests-v3:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
         go-version: [ '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19' ]
-
     steps:
       - uses: actions/checkout@v3
       - name: Setup Go ${{ matrix.go-version }}
@@ -29,14 +26,11 @@ jobs:
           flags: v3
           fail_ci_if_error: true
           verbose: true
-
   tests-v4:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
         go-version: [ '1.18', '1.19' ]
-
     steps:
       - uses: actions/checkout@v3
       - name: Setup Go ${{ matrix.go-version }}
