@@ -13,17 +13,15 @@
  * limitations under the License.
  */
 
-package work_test
+package work
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/freerware/work/v4"
-	"github.com/freerware/work/v4/internal/mock"
 	"github.com/freerware/work/v4/internal/test"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
@@ -33,7 +31,7 @@ type UnitOptionsTestSuite struct {
 	suite.Suite
 
 	// system under test.
-	sut *work.UnitOptions
+	sut *UnitOptions
 }
 
 func TestUnitOptionsTestSuite(t *testing.T) {
@@ -41,7 +39,7 @@ func TestUnitOptionsTestSuite(t *testing.T) {
 }
 
 func (s *UnitOptionsTestSuite) SetupTest() {
-	s.sut = &work.UnitOptions{}
+	s.sut = &UnitOptions{}
 }
 
 func (s *UnitOptionsTestSuite) TestUnitDBOption() {
@@ -49,75 +47,74 @@ func (s *UnitOptionsTestSuite) TestUnitDBOption() {
 	db, _, _ := sqlmock.New()
 
 	// action.
-	work.UnitDB(db)(s.sut)
+	UnitDB(db)(s.sut)
 
 	// assert.
-	s.Equal(db, s.sut.DB)
+	s.Equal(db, s.sut.db)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitDataMappers_Nil() {
 	// arrange.
-	var dm map[work.TypeName]work.UnitDataMapper
+	var dm map[TypeName]UnitDataMapper
 
 	// action.
-	work.UnitDataMappers(dm)(s.sut)
+	UnitDataMappers(dm)(s.sut)
 
 	// assert.
-	s.Nil(s.sut.InsertFuncs)
-	s.Nil(s.sut.UpdateFuncs)
-	s.Nil(s.sut.DeleteFuncs)
+	s.Nil(s.sut.insertFuncs)
+	s.Nil(s.sut.updateFuncs)
+	s.Nil(s.sut.deleteFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitDataMappers_NotNil() {
 	// arrange.
-	dm := make(map[work.TypeName]work.UnitDataMapper)
-	mc := gomock.NewController(s.T())
-	fooTypeName := work.TypeNameOf(test.Foo{})
-	dm[fooTypeName] = mock.NewUnitDataMapper(mc)
+	dm := make(map[TypeName]UnitDataMapper)
+	fooTypeName := TypeNameOf(test.Foo{})
+	dm[fooTypeName] = &noOpDataMapper{}
 
 	// action.
-	work.UnitDataMappers(dm)(s.sut)
+	UnitDataMappers(dm)(s.sut)
 
 	// assert.
-	s.NotNil(s.sut.InsertFuncs)
-	s.NotNil(s.sut.UpdateFuncs)
-	s.NotNil(s.sut.DeleteFuncs)
+	s.NotNil(s.sut.insertFuncs)
+	s.NotNil(s.sut.updateFuncs)
+	s.NotNil(s.sut.deleteFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitInsertFunc() {
 	// arrange.
-	t := work.TypeNameOf(test.Foo{})
-	var f work.UnitDataMapperFunc
+	t := TypeNameOf(test.Foo{})
+	var f UnitDataMapperFunc
 
 	// action.
-	work.UnitInsertFunc(t, f)(s.sut)
+	UnitInsertFunc(t, f)(s.sut)
 
 	// assert.
-	s.NotNil(s.sut.InsertFuncs)
+	s.NotNil(s.sut.insertFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitUpdateFunc() {
 	// arrange.
-	t := work.TypeNameOf(test.Foo{})
-	var f work.UnitDataMapperFunc
+	t := TypeNameOf(test.Foo{})
+	var f UnitDataMapperFunc
 
 	// action.
-	work.UnitUpdateFunc(t, f)(s.sut)
+	UnitUpdateFunc(t, f)(s.sut)
 
 	// assert.
-	s.NotNil(s.sut.UpdateFuncs)
+	s.NotNil(s.sut.updateFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitDeleteFunc() {
 	// arrange.
-	t := work.TypeNameOf(test.Foo{})
-	var f work.UnitDataMapperFunc
+	t := TypeNameOf(test.Foo{})
+	var f UnitDataMapperFunc
 
 	// action.
-	work.UnitDeleteFunc(t, f)(s.sut)
+	UnitDeleteFunc(t, f)(s.sut)
 
 	// assert.
-	s.NotNil(s.sut.DeleteFuncs)
+	s.NotNil(s.sut.deleteFuncs)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitLogger() {
@@ -127,10 +124,10 @@ func (s *UnitOptionsTestSuite) TestUnitLogger() {
 	l, _ := c.Build()
 
 	// action.
-	work.UnitLogger(l)(s.sut)
+	UnitLogger(l)(s.sut)
 
 	// assert.
-	s.Equal(l, s.sut.Logger)
+	s.Equal(l, s.sut.logger)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitScope() {
@@ -138,25 +135,25 @@ func (s *UnitOptionsTestSuite) TestUnitScope() {
 	ts := tally.NewTestScope("test", map[string]string{})
 
 	// action.
-	work.UnitScope(ts)(s.sut)
+	UnitScope(ts)(s.sut)
 
 	// assert.
-	s.Equal(ts, s.sut.Scope)
+	s.Equal(ts, s.sut.scope)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitAfterRegisterActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterRegisterActions(a)(s.sut)
+	UnitAfterRegisterActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterRegister]
+	actions := s.sut.actions[UnitActionTypeAfterRegister]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -164,16 +161,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterRegisterActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterAddActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterAddActions(a)(s.sut)
+	UnitAfterAddActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterAdd]
+	actions := s.sut.actions[UnitActionTypeAfterAdd]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -181,16 +178,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterAddActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterAlterActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterAlterActions(a)(s.sut)
+	UnitAfterAlterActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterAlter]
+	actions := s.sut.actions[UnitActionTypeAfterAlter]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -198,16 +195,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterAlterActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterRemoveActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterRemoveActions(a)(s.sut)
+	UnitAfterRemoveActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterRemove]
+	actions := s.sut.actions[UnitActionTypeAfterRemove]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -215,16 +212,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterRemoveActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterInsertsActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterInsertsActions(a)(s.sut)
+	UnitAfterInsertsActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterInserts]
+	actions := s.sut.actions[UnitActionTypeAfterInserts]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -232,16 +229,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterInsertsActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterUpdatesActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterUpdatesActions(a)(s.sut)
+	UnitAfterUpdatesActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterUpdates]
+	actions := s.sut.actions[UnitActionTypeAfterUpdates]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -249,16 +246,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterUpdatesActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterDeletesActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterDeletesActions(a)(s.sut)
+	UnitAfterDeletesActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterDeletes]
+	actions := s.sut.actions[UnitActionTypeAfterDeletes]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -266,16 +263,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterDeletesActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterRollbackActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterRollbackActions(a)(s.sut)
+	UnitAfterRollbackActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterRollback]
+	actions := s.sut.actions[UnitActionTypeAfterRollback]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -283,16 +280,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterRollbackActions() {
 func (s *UnitOptionsTestSuite) TestUnitAfterSaveActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitAfterSaveActions(a)(s.sut)
+	UnitAfterSaveActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeAfterSave]
+	actions := s.sut.actions[UnitActionTypeAfterSave]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -300,16 +297,16 @@ func (s *UnitOptionsTestSuite) TestUnitAfterSaveActions() {
 func (s *UnitOptionsTestSuite) TestUnitBeforeInsertsActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitBeforeInsertsActions(a)(s.sut)
+	UnitBeforeInsertsActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeBeforeInserts]
+	actions := s.sut.actions[UnitActionTypeBeforeInserts]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -317,16 +314,16 @@ func (s *UnitOptionsTestSuite) TestUnitBeforeInsertsActions() {
 func (s *UnitOptionsTestSuite) TestUnitBeforeUpdatesActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitBeforeUpdatesActions(a)(s.sut)
+	UnitBeforeUpdatesActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeBeforeUpdates]
+	actions := s.sut.actions[UnitActionTypeBeforeUpdates]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -334,16 +331,16 @@ func (s *UnitOptionsTestSuite) TestUnitBeforeUpdatesActions() {
 func (s *UnitOptionsTestSuite) TestUnitBeforeDeletesActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitBeforeDeletesActions(a)(s.sut)
+	UnitBeforeDeletesActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeBeforeDeletes]
+	actions := s.sut.actions[UnitActionTypeBeforeDeletes]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -351,16 +348,16 @@ func (s *UnitOptionsTestSuite) TestUnitBeforeDeletesActions() {
 func (s *UnitOptionsTestSuite) TestUnitBeforeRollbackActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitBeforeRollbackActions(a)(s.sut)
+	UnitBeforeRollbackActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeBeforeRollback]
+	actions := s.sut.actions[UnitActionTypeBeforeRollback]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -368,16 +365,16 @@ func (s *UnitOptionsTestSuite) TestUnitBeforeRollbackActions() {
 func (s *UnitOptionsTestSuite) TestUnitBeforeSaveActions() {
 	// arrange.
 	same := false
-	a := func(context work.UnitActionContext) { same = true }
+	a := func(context UnitActionContext) { same = true }
 
 	// action.
-	work.UnitBeforeSaveActions(a)(s.sut)
+	UnitBeforeSaveActions(a)(s.sut)
 
 	// assert.
-	actions := s.sut.Actions[work.UnitActionTypeBeforeSave]
+	actions := s.sut.actions[UnitActionTypeBeforeSave]
 	s.Len(actions, 1)
 	s.Condition(func() bool {
-		actions[0](work.UnitActionContext{})
+		actions[0](UnitActionContext{})
 		return same
 	})
 }
@@ -385,19 +382,19 @@ func (s *UnitOptionsTestSuite) TestUnitBeforeSaveActions() {
 func (s *UnitOptionsTestSuite) TestDisableDefaultLoggingActions() {
 
 	// action.
-	work.DisableDefaultLoggingActions()(s.sut)
+	DisableDefaultLoggingActions()(s.sut)
 
 	// assert.
-	s.True(s.sut.DisableDefaultLoggingActions)
+	s.True(s.sut.disableDefaultLoggingActions)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitRetryAttempts_Negative() {
 
 	// action.
-	work.UnitRetryAttempts(-1)(s.sut)
+	UnitRetryAttempts(-1)(s.sut)
 
 	// assert.
-	s.Zero(s.sut.RetryAttempts)
+	s.Zero(s.sut.retryAttempts)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitRetryAttempts_NotNegative() {
@@ -405,10 +402,10 @@ func (s *UnitOptionsTestSuite) TestUnitRetryAttempts_NotNegative() {
 	attempts := 2
 
 	// action.
-	work.UnitRetryAttempts(attempts)(s.sut)
+	UnitRetryAttempts(attempts)(s.sut)
 
 	// assert.
-	s.Equal(attempts, s.sut.RetryAttempts)
+	s.Equal(attempts, s.sut.retryAttempts)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitRetryDelay() {
@@ -416,10 +413,10 @@ func (s *UnitOptionsTestSuite) TestUnitRetryDelay() {
 	delay := 10 * time.Second
 
 	// action.
-	work.UnitRetryDelay(delay)(s.sut)
+	UnitRetryDelay(delay)(s.sut)
 
 	// assert.
-	s.Equal(delay, s.sut.RetryDelay)
+	s.Equal(delay, s.sut.retryDelay)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitRetryMaximumJitter() {
@@ -427,23 +424,37 @@ func (s *UnitOptionsTestSuite) TestUnitRetryMaximumJitter() {
 	delay := 10 * time.Second
 
 	// action.
-	work.UnitRetryMaximumJitter(delay)(s.sut)
+	UnitRetryMaximumJitter(delay)(s.sut)
 
 	// assert.
-	s.Equal(delay, s.sut.RetryMaximumJitter)
+	s.Equal(delay, s.sut.retryMaximumJitter)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitRetryType() {
 	// arrange.
-	var t work.UnitRetryDelayType = work.UnitRetryDelayTypeBackOff
+	var t UnitRetryDelayType = UnitRetryDelayTypeBackOff
 
 	// action.
-	work.UnitRetryType(t)(s.sut)
+	UnitRetryType(t)(s.sut)
 
 	// assert.
-	s.Equal(t, s.sut.RetryType)
+	s.Equal(t, s.sut.retryType)
 }
 
 func (s *UnitOptionsTestSuite) TearDownTest() {
 	s.sut = nil
+}
+
+type noOpDataMapper struct{}
+
+func (dm noOpDataMapper) Insert(ctx context.Context, mCtx UnitMapperContext, e ...interface{}) error {
+	return nil
+}
+
+func (dm noOpDataMapper) Update(ctx context.Context, mCtx UnitMapperContext, e ...interface{}) error {
+	return nil
+}
+
+func (dm noOpDataMapper) Delete(ctx context.Context, mCtx UnitMapperContext, e ...interface{}) error {
+	return nil
 }
