@@ -135,8 +135,8 @@ func (s *BestEffortUnitTestSuite) Setup() {
 	var err error
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
-		work.UnitLogger(l),
-		work.UnitScope(ts),
+		work.UnitZapLogger(l),
+		work.UnitTallyMetricScope(ts),
 		work.UnitRetryAttempts(s.retryCount),
 	}
 	s.sut, err = work.NewUnit(opts...)
