@@ -134,8 +134,8 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.scope = ts
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
-		work.UnitLogger(l),
-		work.UnitScope(ts),
+		work.UnitZapLogger(l),
+		work.UnitTallyMetricScope(ts),
 		work.UnitDB(s.db),
 		work.UnitRetryAttempts(s.retryCount),
 	}
