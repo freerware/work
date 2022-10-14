@@ -26,23 +26,22 @@ import (
 	"go.uber.org/zap"
 )
 
-// UnitOptions represents the configuration options
-// for the work unit.
+// UnitOptions represents the configuration options for the work unit.
 type UnitOptions struct {
-	Logger                       *zap.Logger
-	Scope                        tally.Scope
-	Actions                      map[UnitActionType][]UnitAction
-	DisableDefaultLoggingActions bool
-	DB                           *sql.DB
-	RetryAttempts                int
-	RetryDelay                   time.Duration
-	RetryMaximumJitter           time.Duration
-	RetryType                    UnitRetryDelayType
-	InsertFuncs                  map[TypeName]UnitDataMapperFunc
+	logger                       *zap.Logger
+	scope                        tally.Scope
+	actions                      map[UnitActionType][]UnitAction
+	disableDefaultLoggingActions bool
+	db                           *sql.DB
+	retryAttempts                int
+	retryDelay                   time.Duration
+	retryMaximumJitter           time.Duration
+	retryType                    UnitRetryDelayType
+	insertFuncs                  map[TypeName]UnitDataMapperFunc
 	insertFuncsLen               int
-	UpdateFuncs                  map[TypeName]UnitDataMapperFunc
+	updateFuncs                  map[TypeName]UnitDataMapperFunc
 	updateFuncsLen               int
-	DeleteFuncs                  map[TypeName]UnitDataMapperFunc
+	deleteFuncs                  map[TypeName]UnitDataMapperFunc
 	deleteFuncsLen               int
 }
 
@@ -54,37 +53,37 @@ func (uo *UnitOptions) hasDataMapperFuncs() bool {
 	return uo.totalDataMapperFuncs() != 0
 }
 
-func (uo *UnitOptions) insertFuncs() (funcs *sync.Map) {
-	if uo.InsertFuncs == nil {
+func (uo *UnitOptions) iFuncs() (funcs *sync.Map) {
+	if uo.insertFuncs == nil {
 		return
 	}
 
 	funcs = &sync.Map{}
-	for t, f := range uo.InsertFuncs {
+	for t, f := range uo.insertFuncs {
 		funcs.Store(t, f)
 	}
 	return
 }
 
-func (uo *UnitOptions) updateFuncs() (funcs *sync.Map) {
-	if uo.UpdateFuncs == nil {
+func (uo *UnitOptions) uFuncs() (funcs *sync.Map) {
+	if uo.updateFuncs == nil {
 		return
 	}
 
 	funcs = &sync.Map{}
-	for t, f := range uo.UpdateFuncs {
+	for t, f := range uo.updateFuncs {
 		funcs.Store(t, f)
 	}
 	return
 }
 
-func (uo *UnitOptions) deleteFuncs() (funcs *sync.Map) {
-	if uo.DeleteFuncs == nil {
+func (uo *UnitOptions) dFuncs() (funcs *sync.Map) {
+	if uo.deleteFuncs == nil {
 		return
 	}
 
 	funcs = &sync.Map{}
-	for t, f := range uo.DeleteFuncs {
+	for t, f := range uo.deleteFuncs {
 		funcs.Store(t, f)
 	}
 	return
@@ -125,7 +124,7 @@ var (
 	// UnitDB specifies the option to provide the database for the work unit.
 	UnitDB = func(db *sql.DB) UnitOption {
 		return func(o *UnitOptions) {
-			o.DB = db
+			o.db = db
 		}
 	}
 
@@ -135,21 +134,21 @@ var (
 			if dm == nil || len(dm) == 0 {
 				return
 			}
-			if o.InsertFuncs == nil {
-				o.InsertFuncs = make(map[TypeName]UnitDataMapperFunc)
+			if o.insertFuncs == nil {
+				o.insertFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
-			if o.UpdateFuncs == nil {
-				o.UpdateFuncs = make(map[TypeName]UnitDataMapperFunc)
+			if o.updateFuncs == nil {
+				o.updateFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
-			if o.DeleteFuncs == nil {
-				o.DeleteFuncs = make(map[TypeName]UnitDataMapperFunc)
+			if o.deleteFuncs == nil {
+				o.deleteFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
 			for typeName, dataMapper := range dm {
-				o.InsertFuncs[typeName] = dataMapper.Insert
+				o.insertFuncs[typeName] = dataMapper.Insert
 				o.insertFuncsLen = o.insertFuncsLen + 1
-				o.UpdateFuncs[typeName] = dataMapper.Update
+				o.updateFuncs[typeName] = dataMapper.Update
 				o.updateFuncsLen = o.updateFuncsLen + 1
-				o.DeleteFuncs[typeName] = dataMapper.Delete
+				o.deleteFuncs[typeName] = dataMapper.Delete
 				o.deleteFuncsLen = o.deleteFuncsLen + 1
 			}
 		}
@@ -158,24 +157,24 @@ var (
 	// UnitLogger specifies the option to provide a logger for the work unit.
 	UnitLogger = func(l *zap.Logger) UnitOption {
 		return func(o *UnitOptions) {
-			o.Logger = l
+			o.logger = l
 		}
 	}
 
 	// UnitScope specifies the option to provide a metric scope for the work unit.
 	UnitScope = func(s tally.Scope) UnitOption {
 		return func(o *UnitOptions) {
-			o.Scope = s
+			o.scope = s
 		}
 	}
 
 	// setActions appends the provided actions as the provided action type.
 	setActions = func(t UnitActionType, a ...UnitAction) UnitOption {
 		return func(o *UnitOptions) {
-			if o.Actions == nil {
-				o.Actions = make(map[UnitActionType][]UnitAction)
+			if o.actions == nil {
+				o.actions = make(map[UnitActionType][]UnitAction)
 			}
-			o.Actions[t] = append(o.Actions[t], a...)
+			o.actions[t] = append(o.actions[t], a...)
 		}
 	}
 
@@ -342,7 +341,7 @@ var (
 	// DisableDefaultLoggingActions disables the default logging actions.
 	DisableDefaultLoggingActions = func() UnitOption {
 		return func(o *UnitOptions) {
-			o.DisableDefaultLoggingActions = true
+			o.disableDefaultLoggingActions = true
 		}
 	}
 
@@ -352,14 +351,14 @@ var (
 			attempts = 0
 		}
 		return func(o *UnitOptions) {
-			o.RetryAttempts = attempts
+			o.retryAttempts = attempts
 		}
 	}
 
 	// UnitRetryDelay defines the delay to utilize during retries.
 	UnitRetryDelay = func(delay time.Duration) UnitOption {
 		return func(o *UnitOptions) {
-			o.RetryDelay = delay
+			o.retryDelay = delay
 		}
 	}
 
@@ -367,14 +366,14 @@ var (
 	// retries that utilize random delay times.
 	UnitRetryMaximumJitter = func(jitter time.Duration) UnitOption {
 		return func(o *UnitOptions) {
-			o.RetryMaximumJitter = jitter
+			o.retryMaximumJitter = jitter
 		}
 	}
 
 	// UnitRetryType defines the type of retry to perform.
 	UnitRetryType = func(retryType UnitRetryDelayType) UnitOption {
 		return func(o *UnitOptions) {
-			o.RetryType = retryType
+			o.retryType = retryType
 		}
 	}
 
@@ -382,10 +381,10 @@ var (
 	// entities in the underlying data store.
 	UnitInsertFunc = func(t TypeName, insertFunc UnitDataMapperFunc) UnitOption {
 		return func(o *UnitOptions) {
-			if o.InsertFuncs == nil {
-				o.InsertFuncs = make(map[TypeName]UnitDataMapperFunc)
+			if o.insertFuncs == nil {
+				o.insertFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
-			o.InsertFuncs[t] = insertFunc
+			o.insertFuncs[t] = insertFunc
 			o.insertFuncsLen = o.insertFuncsLen + 1
 		}
 	}
@@ -394,10 +393,10 @@ var (
 	// entities in the underlying data store.
 	UnitUpdateFunc = func(t TypeName, updateFunc UnitDataMapperFunc) UnitOption {
 		return func(o *UnitOptions) {
-			if o.UpdateFuncs == nil {
-				o.UpdateFuncs = make(map[TypeName]UnitDataMapperFunc)
+			if o.updateFuncs == nil {
+				o.updateFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
-			o.UpdateFuncs[t] = updateFunc
+			o.updateFuncs[t] = updateFunc
 			o.updateFuncsLen = o.updateFuncsLen + 1
 		}
 	}
@@ -406,10 +405,10 @@ var (
 	// entities in the underlying data store.
 	UnitDeleteFunc = func(t TypeName, deleteFunc UnitDataMapperFunc) UnitOption {
 		return func(o *UnitOptions) {
-			if o.DeleteFuncs == nil {
-				o.DeleteFuncs = make(map[TypeName]UnitDataMapperFunc)
+			if o.deleteFuncs == nil {
+				o.deleteFuncs = make(map[TypeName]UnitDataMapperFunc)
 			}
-			o.DeleteFuncs[t] = deleteFunc
+			o.deleteFuncs[t] = deleteFunc
 			o.deleteFuncsLen = o.deleteFuncsLen + 1
 		}
 	}

@@ -102,27 +102,27 @@ type unit struct {
 func options(options []UnitOption) UnitOptions {
 	// set defaults.
 	o := UnitOptions{
-		Logger:             zap.NewNop(),
-		Scope:              tally.NoopScope,
-		Actions:            make(map[UnitActionType][]UnitAction),
-		RetryAttempts:      3,
-		RetryType:          UnitRetryDelayTypeFixed,
-		RetryDelay:         50 * time.Millisecond,
-		RetryMaximumJitter: 50 * time.Millisecond,
+		logger:             zap.NewNop(),
+		scope:              tally.NoopScope,
+		actions:            make(map[UnitActionType][]UnitAction),
+		retryAttempts:      3,
+		retryType:          UnitRetryDelayTypeFixed,
+		retryDelay:         50 * time.Millisecond,
+		retryMaximumJitter: 50 * time.Millisecond,
 	}
 	// apply options.
 	for _, opt := range options {
 		opt(&o)
 	}
-	if !o.DisableDefaultLoggingActions {
+	if !o.disableDefaultLoggingActions {
 		UnitDefaultLoggingActions()(&o)
 	}
 	// prepare metrics scope.
-	o.Scope = o.Scope.SubScope("unit")
-	if o.DB != nil {
-		o.Scope = o.Scope.Tagged(sqlUnitTag)
+	o.scope = o.scope.SubScope("unit")
+	if o.db != nil {
+		o.scope = o.scope.Tagged(sqlUnitTag)
 	} else {
-		o.Scope = o.Scope.Tagged(bestEffortUnitTag)
+		o.scope = o.scope.Tagged(bestEffortUnitTag)
 	}
 	return o
 }
@@ -130,17 +130,17 @@ func options(options []UnitOption) UnitOptions {
 func NewUnit(opts ...UnitOption) (Unit, error) {
 	options := options(opts)
 	retryOptions := []retry.Option{
-		retry.Attempts(uint(options.RetryAttempts)),
-		retry.Delay(options.RetryDelay),
-		retry.DelayType(options.RetryType.convert()),
+		retry.Attempts(uint(options.retryAttempts)),
+		retry.Delay(options.retryDelay),
+		retry.DelayType(options.retryType.convert()),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
-			options.Logger.Warn(
+			options.logger.Warn(
 				"attempted retry",
 				zap.Int("attempt", int(attempt+1)),
 				zap.Error(err),
 			)
-			options.Scope.Counter(retryAttempt).Inc(1)
+			options.scope.Counter(retryAttempt).Inc(1)
 		}),
 	}
 	u := unit{
@@ -148,14 +148,14 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		alterations:  make(map[TypeName][]interface{}),
 		removals:     make(map[TypeName][]interface{}),
 		registered:   make(map[TypeName][]interface{}),
-		cached:       &UnitCache{scope: options.Scope},
-		logger:       options.Logger,
-		scope:        options.Scope,
-		actions:      options.Actions,
-		db:           options.DB,
-		insertFuncs:  options.insertFuncs(),
-		updateFuncs:  options.updateFuncs(),
-		deleteFuncs:  options.deleteFuncs(),
+		cached:       &UnitCache{scope: options.scope},
+		logger:       options.logger,
+		scope:        options.scope,
+		actions:      options.actions,
+		db:           options.db,
+		insertFuncs:  options.iFuncs(),
+		updateFuncs:  options.uFuncs(),
+		deleteFuncs:  options.dFuncs(),
 		retryOptions: retryOptions,
 	}
 	if !options.hasDataMapperFuncs() {
