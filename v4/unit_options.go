@@ -128,7 +128,8 @@ var (
 		}
 	}
 
-	// UnitDataMappers specifies the option to provide the data mappers for the work unit.
+	// UnitDataMappers specifies the option to provide the data mappers for
+	// the work unit.
 	UnitDataMappers = func(dm map[TypeName]UnitDataMapper) UnitOption {
 		return func(o *UnitOptions) {
 			if dm == nil || len(dm) == 0 {
@@ -154,15 +155,17 @@ var (
 		}
 	}
 
-	// UnitLogger specifies the option to provide a logger for the work unit.
-	UnitLogger = func(l *zap.Logger) UnitOption {
+	// UnitZapLogger specifies the option to provide a zap logger for the
+	// work unit.
+	UnitZapLogger = func(l *zap.Logger) UnitOption {
 		return func(o *UnitOptions) {
 			o.logger = l
 		}
 	}
 
-	// UnitScope specifies the option to provide a metric scope for the work unit.
-	UnitScope = func(s tally.Scope) UnitOption {
+	// UnitTallyMetricScope specifies the option to provide a tally metric
+	// scope for the work unit.
+	UnitTallyMetricScope = func(s tally.Scope) UnitOption {
 		return func(o *UnitOptions) {
 			o.scope = s
 		}

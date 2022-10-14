@@ -124,7 +124,7 @@ func (s *UnitOptionsTestSuite) TestUnitLogger() {
 	l, _ := c.Build()
 
 	// action.
-	UnitLogger(l)(s.sut)
+	UnitZapLogger(l)(s.sut)
 
 	// assert.
 	s.Equal(l, s.sut.logger)
@@ -135,7 +135,7 @@ func (s *UnitOptionsTestSuite) TestUnitScope() {
 	ts := tally.NewTestScope("test", map[string]string{})
 
 	// action.
-	UnitScope(ts)(s.sut)
+	UnitTallyMetricScope(ts)(s.sut)
 
 	// assert.
 	s.Equal(ts, s.sut.scope)
