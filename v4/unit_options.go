@@ -43,6 +43,7 @@ type UnitOptions struct {
 	updateFuncsLen               int
 	deleteFuncs                  map[TypeName]UnitDataMapperFunc
 	deleteFuncsLen               int
+	cacheClient                  UnitCacheClient
 }
 
 func (uo *UnitOptions) totalDataMapperFuncs() int {
@@ -413,6 +414,13 @@ var (
 			}
 			o.deleteFuncs[t] = deleteFunc
 			o.deleteFuncsLen = o.deleteFuncsLen + 1
+		}
+	}
+
+	// UnitWithCacheClient defines the cache client to be used.
+	UnitWithCacheClient = func(cc UnitCacheClient) UnitOption {
+		return func(o *UnitOptions) {
+			o.cacheClient = cc
 		}
 	}
 )

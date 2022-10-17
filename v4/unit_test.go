@@ -16,6 +16,7 @@
 package work_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -169,9 +170,10 @@ func (s *UnitTestSuite) TestUnit_Add_Empty() {
 
 	// arrange.
 	entities := []interface{}{}
+	ctx := context.Background()
 
 	// action.
-	err := s.sut.Add(entities...)
+	err := s.sut.Add(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -186,13 +188,14 @@ func (s *UnitTestSuite) TestUnit_Add_MissingDataMapper() {
 	mappers := map[work.TypeName]work.UnitDataMapper{
 		work.TypeNameOf(test.Bar{}): &mock.UnitDataMapper{},
 	}
+	ctx := context.Background()
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 
 	// action.
-	err = s.sut.Add(entities...)
+	err = s.sut.Add(ctx, entities...)
 
 	// assert.
 	s.Error(err)
@@ -205,9 +208,10 @@ func (s *UnitTestSuite) TestUnit_Add() {
 		test.Foo{ID: 28},
 		test.Bar{ID: "28"},
 	}
+	ctx := context.Background()
 
 	// action.
-	err := s.sut.Add(entities...)
+	err := s.sut.Add(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -218,17 +222,18 @@ func (s *UnitTestSuite) TestUnit_ConcurrentAdd() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	bar := test.Bar{ID: "28"}
+	ctx := context.Background()
 
 	// action.
 	var err, err2 error
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		err = s.sut.Add(foo)
+		err = s.sut.Add(ctx, foo)
 		wg.Done()
 	}()
 	go func() {
-		err2 = s.sut.Add(bar)
+		err2 = s.sut.Add(ctx, bar)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -242,9 +247,10 @@ func (s *UnitTestSuite) TestUnit_Alter_Empty() {
 
 	// arrange.
 	entities := []interface{}{}
+	ctx := context.Background()
 
 	// action.
-	err := s.sut.Alter(entities...)
+	err := s.sut.Alter(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -259,13 +265,14 @@ func (s *UnitTestSuite) TestUnit_Alter_MissingDataMapper() {
 	mappers := map[work.TypeName]work.UnitDataMapper{
 		work.TypeNameOf(test.Bar{}): &mock.UnitDataMapper{},
 	}
+	ctx := context.Background()
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 
 	// action.
-	err = s.sut.Alter(entities...)
+	err = s.sut.Alter(ctx, entities...)
 
 	// assert.
 	s.Error(err)
@@ -278,9 +285,10 @@ func (s *UnitTestSuite) TestUnit_Alter() {
 		test.Foo{ID: 28},
 		test.Bar{ID: "28"},
 	}
+	ctx := context.Background()
 
 	// action.
-	err := s.sut.Alter(entities...)
+	err := s.sut.Alter(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -291,17 +299,18 @@ func (s *UnitTestSuite) TestUnit_ConcurrentAlter() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	bar := test.Bar{ID: "28"}
+	ctx := context.Background()
 
 	// action.
 	var err, err2 error
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		err = s.sut.Alter(foo)
+		err = s.sut.Alter(ctx, foo)
 		wg.Done()
 	}()
 	go func() {
-		err2 = s.sut.Alter(bar)
+		err2 = s.sut.Alter(ctx, bar)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -315,9 +324,10 @@ func (s *UnitTestSuite) TestUnit_Remove_Empty() {
 
 	// arrange.
 	entities := []interface{}{}
+	ctx := context.Background()
 
 	// action.
-	err := s.sut.Remove(entities...)
+	err := s.sut.Remove(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -332,13 +342,14 @@ func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 	mappers := map[work.TypeName]work.UnitDataMapper{
 		work.TypeNameOf(test.Foo{}): &mock.UnitDataMapper{},
 	}
+	ctx := context.Background()
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 
 	// action.
-	err = s.sut.Remove(entities...)
+	err = s.sut.Remove(ctx, entities...)
 
 	// assert.
 	s.Error(err)
@@ -347,13 +358,14 @@ func (s *UnitTestSuite) TestUnit_Remove_MissingDataMapper() {
 func (s *UnitTestSuite) TestUnit_Remove() {
 
 	// arrange.
+	ctx := context.Background()
 	entities := []interface{}{
 		test.Foo{ID: 28},
 		test.Bar{ID: "28"},
 	}
 
 	// action.
-	err := s.sut.Remove(entities...)
+	err := s.sut.Remove(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -364,17 +376,18 @@ func (s *UnitTestSuite) TestUnit_ConcurrentRemove() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	bar := test.Bar{ID: "28"}
+	ctx := context.Background()
 
 	// action.
 	var err, err2 error
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		err = s.sut.Remove(foo)
+		err = s.sut.Remove(ctx, foo)
 		wg.Done()
 	}()
 	go func() {
-		err2 = s.sut.Remove(bar)
+		err2 = s.sut.Remove(ctx, bar)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -387,10 +400,11 @@ func (s *UnitTestSuite) TestUnit_ConcurrentRemove() {
 func (s *UnitTestSuite) TestUnit_Register_Empty() {
 
 	// arrange.
+	ctx := context.Background()
 	entities := []interface{}{}
 
 	// action.
-	err := s.sut.Register(entities...)
+	err := s.sut.Register(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -405,13 +419,14 @@ func (s *UnitTestSuite) TestUnit_Register_MissingDataMapper() {
 	mappers := map[work.TypeName]work.UnitDataMapper{
 		work.TypeNameOf(test.Foo{}): &mock.UnitDataMapper{},
 	}
+	ctx := context.Background()
 	var err error
 	opts := []work.UnitOption{work.UnitDataMappers(mappers)}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 
 	// action.
-	err = s.sut.Register(entities...)
+	err = s.sut.Register(ctx, entities...)
 
 	// assert.
 	s.Require().Error(err)
@@ -425,9 +440,10 @@ func (s *UnitTestSuite) TestUnit_Register() {
 		test.Foo{ID: 28},
 		test.Biz{Identifier: "28"},
 	}
+	ctx := context.Background()
 
 	// action.
-	err := s.sut.Register(entities...)
+	err := s.sut.Register(ctx, entities...)
 
 	// assert.
 	s.NoError(err)
@@ -438,17 +454,18 @@ func (s *UnitTestSuite) TestUnit_ConcurrentRegister() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	bar := test.Bar{ID: "28"}
+	ctx := context.Background()
 
 	// action.
 	var err, err2 error
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		err = s.sut.Register(foo)
+		err = s.sut.Register(ctx, foo)
 		wg.Done()
 	}()
 	go func() {
-		err2 = s.sut.Register(bar)
+		err2 = s.sut.Register(ctx, bar)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -462,17 +479,20 @@ func (s *UnitTestSuite) TestUnit_Cache() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	baz := test.Baz{Identifier: "28"}
-	s.sut.Register(foo, baz)
+	ctx := context.Background()
+	tFoo := work.TypeNameOf(foo)
+	tBaz := work.TypeNameOf(baz)
+	s.sut.Register(ctx, foo, baz)
 
 	// action.
 	cached := s.sut.Cached()
 
 	// assert.
-	cachedFoo, foundFoo := cached.Load(work.TypeNameOf(foo), foo.ID)
-	s.True(foundFoo)
+	cachedFoo, err := cached.Load(ctx, tFoo, foo.ID)
+	s.Require().NoError(err)
 	s.Equal(foo, cachedFoo)
-	cachedBaz, foundBaz := cached.Load(work.TypeNameOf(baz), baz.Identifier)
-	s.True(foundBaz)
+	cachedBaz, err := cached.Load(ctx, tBaz, baz.Identifier)
+	s.Require().NoError(err)
 	s.Equal(baz, cachedBaz)
 }
 
@@ -480,36 +500,46 @@ func (s *UnitTestSuite) TestUnit_Remove_InvalidatesCache() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	baz := test.Baz{Identifier: "28"}
-	s.sut.Register(foo, baz)
+	ctx := context.Background()
+	tFoo := work.TypeNameOf(foo)
+	tBaz := work.TypeNameOf(baz)
+	s.sut.Register(ctx, foo, baz)
 
 	// action.
-	err := s.sut.Remove(foo)
+	err := s.sut.Remove(ctx, foo)
 
 	// assert.
 	s.NoError(err)
 	cached := s.sut.Cached()
-	_, foundFoo := cached.Load(work.TypeNameOf(foo), foo.ID)
-	s.False(foundFoo)
-	_, foundBaz := cached.Load(work.TypeNameOf(baz), baz.Identifier)
-	s.True(foundBaz)
+	cachedFoo, err := cached.Load(ctx, tFoo, foo.ID)
+	s.Require().NoError(err)
+	s.Nil(cachedFoo)
+	cachedBaz, err := cached.Load(ctx, tBaz, baz.Identifier)
+	s.Require().NoError(err)
+	s.Equal(baz, cachedBaz)
 }
 
 func (s *UnitTestSuite) TestUnit_Alter_InvalidatesCache() {
 	// arrange.
 	foo := test.Foo{ID: 28}
 	baz := test.Baz{Identifier: "28"}
-	s.sut.Register(foo, baz)
+	ctx := context.Background()
+	tFoo := work.TypeNameOf(foo)
+	tBaz := work.TypeNameOf(baz)
+	s.sut.Register(ctx, foo, baz)
 
 	// action.
-	err := s.sut.Alter(foo)
+	err := s.sut.Alter(ctx, foo)
 
 	// assert.
 	s.NoError(err)
 	cached := s.sut.Cached()
-	_, foundFoo := cached.Load(work.TypeNameOf(foo), foo.ID)
-	s.False(foundFoo)
-	_, foundBaz := cached.Load(work.TypeNameOf(baz), baz.Identifier)
-	s.True(foundBaz)
+	cachedFoo, err := cached.Load(ctx, tFoo, foo.ID)
+	s.Require().NoError(err)
+	s.Nil(cachedFoo)
+	cachedBaz, err := cached.Load(ctx, tBaz, baz.Identifier)
+	s.Require().NoError(err)
+	s.Equal(baz, cachedBaz)
 }
 
 func (s *UnitTestSuite) TearDownTest() {
