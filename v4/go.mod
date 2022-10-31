@@ -7,7 +7,7 @@ require (
 	github.com/avast/retry-go/v4 v4.1.0
 	github.com/cactus/go-statsd-client/statsd v0.0.0-20200423205355-cb0885a1018c
 	github.com/golang/mock v1.6.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/uber-go/tally/v4 v4.1.3
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.23.0
