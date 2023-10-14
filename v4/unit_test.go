@@ -17,6 +17,8 @@ package work_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -540,6 +542,104 @@ func (s *UnitTestSuite) TestUnit_Alter_InvalidatesCache() {
 	cachedBaz, err := cached.Load(ctx, tBaz, baz.Identifier)
 	s.Require().NoError(err)
 	s.Equal(baz, cachedBaz)
+}
+
+func (s *UnitTestSuite) TestUnit_Alter_CacheInvalidationError() {
+	// arrange.
+	ctx := context.Background()
+	foo := test.Foo{ID: 28}
+	baz := test.Baz{Identifier: "28"}
+	tFoo := work.TypeNameOf(foo)
+	tBaz := work.TypeNameOf(baz)
+
+	// initialize mocks.
+	s.mc = gomock.NewController(s.T())
+	cacheClient := mock.NewUnitCacheClient(s.mc)
+	cacheInvalidationError := errors.New("cache invalidation failed!")
+	cacheClient.
+		EXPECT().
+		Set(ctx, fmt.Sprintf("%s-%v", string(tFoo), foo.ID), foo).
+		Return(nil)
+	cacheClient.
+		EXPECT().
+		Set(ctx, fmt.Sprintf("%s-%v", string(tBaz), baz.Identifier), baz).
+		Return(nil)
+	cacheClient.
+		EXPECT().
+		Delete(ctx, fmt.Sprintf("%s-%v", string(tFoo), foo.ID)).
+		Return(cacheInvalidationError)
+
+	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
+	s.mappers[tFoo] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[tBaz] = mock.NewUnitDataMapper(s.mc)
+
+	// construct SUT.
+	dm := make(map[work.TypeName]work.UnitDataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
+	}
+
+	var err error
+	opts := []work.UnitOption{work.UnitDataMappers(dm), work.UnitWithCacheClient(cacheClient)}
+	s.sut, err = work.NewUnit(opts...)
+	s.Require().NoError(err)
+
+	s.sut.Register(ctx, foo, baz)
+
+	// action.
+	err = s.sut.Alter(ctx, foo)
+
+	// assert.
+	s.EqualError(err, cacheInvalidationError.Error())
+}
+
+func (s *UnitTestSuite) TestUnit_Remove_CacheInvalidationError() {
+	// arrange.
+	ctx := context.Background()
+	foo := test.Foo{ID: 28}
+	baz := test.Baz{Identifier: "28"}
+	tFoo := work.TypeNameOf(foo)
+	tBaz := work.TypeNameOf(baz)
+
+	// initialize mocks.
+	s.mc = gomock.NewController(s.T())
+	cacheClient := mock.NewUnitCacheClient(s.mc)
+	cacheInvalidationError := errors.New("cache invalidation failed!")
+	cacheClient.
+		EXPECT().
+		Set(ctx, fmt.Sprintf("%s-%v", string(tFoo), foo.ID), foo).
+		Return(nil)
+	cacheClient.
+		EXPECT().
+		Set(ctx, fmt.Sprintf("%s-%v", string(tBaz), baz.Identifier), baz).
+		Return(nil)
+	cacheClient.
+		EXPECT().
+		Delete(ctx, fmt.Sprintf("%s-%v", string(tFoo), foo.ID)).
+		Return(cacheInvalidationError)
+
+	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
+	s.mappers[tFoo] = mock.NewUnitDataMapper(s.mc)
+	s.mappers[tBaz] = mock.NewUnitDataMapper(s.mc)
+
+	// construct SUT.
+	dm := make(map[work.TypeName]work.UnitDataMapper)
+	for t, m := range s.mappers {
+		dm[t] = m
+	}
+
+	var err error
+	opts := []work.UnitOption{work.UnitDataMappers(dm), work.UnitWithCacheClient(cacheClient)}
+	s.sut, err = work.NewUnit(opts...)
+	s.Require().NoError(err)
+
+	s.sut.Register(ctx, foo, baz)
+
+	// action.
+	err = s.sut.Remove(ctx, foo)
+
+	// assert.
+	s.EqualError(err, cacheInvalidationError.Error())
 }
 
 func (s *UnitTestSuite) TearDownTest() {
