@@ -89,7 +89,7 @@ func setupDataMapper() map[work.TypeName]unit.DataMapper {
 
 func o() []work.UnitOption {
 	return []work.UnitOption{
-		work.UnitScope(setupScope()),
+		work.UnitTallyMetricScope(setupScope()),
 		work.UnitDataMappers(setupDataMapper()),
 	}
 }
@@ -107,6 +107,8 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+
 	for i := 0; i < saveAttempts; i++ {
 		unit, err := work.NewUnit(o()...)
 		if err != nil {
@@ -117,7 +119,7 @@ func main() {
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			registrations = append(registrations, test.Foo{ID: id()})
 		}
-		if err = unit.Register(registrations...); err != nil {
+		if err = unit.Register(ctx, registrations...); err != nil {
 			panic(err)
 		}
 
@@ -125,7 +127,7 @@ func main() {
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			additions = append(additions, test.Foo{ID: id()})
 		}
-		if err = unit.Add(additions...); err != nil {
+		if err = unit.Add(ctx, additions...); err != nil {
 			panic(err)
 		}
 
@@ -133,7 +135,7 @@ func main() {
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			alters = append(alters, test.Foo{ID: id()})
 		}
-		if err = unit.Alter(alters...); err != nil {
+		if err = unit.Alter(ctx, alters...); err != nil {
 			panic(err)
 		}
 
@@ -141,10 +143,10 @@ func main() {
 		for j := 0; j < rand.Intn(maximumEntitiesPerOperation); j++ {
 			removals = append(removals, test.Foo{ID: id()})
 		}
-		if err = unit.Remove(removals...); err != nil {
+		if err = unit.Remove(ctx, removals...); err != nil {
 			panic(err)
 		}
 
-		unit.Save(context.Background())
+		unit.Save(ctx)
 	}
 }
