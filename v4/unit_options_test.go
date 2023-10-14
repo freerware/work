@@ -441,6 +441,17 @@ func (s *UnitOptionsTestSuite) TestUnitRetryType() {
 	s.Equal(t, s.sut.retryType)
 }
 
+func (s *UnitOptionsTestSuite) TestUnitWithCacheClient() {
+	// arrange.
+	cacheClient := &memoryCacheClient{}
+
+	// action.
+	UnitWithCacheClient(cacheClient)(s.sut)
+
+	// assert.
+	s.Equal(cacheClient, s.sut.cacheClient)
+}
+
 func (s *UnitOptionsTestSuite) TearDownTest() {
 	s.sut = nil
 }
