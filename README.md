@@ -38,91 +38,21 @@ For SQL datastores, also enjoy:
   - transaction only remains open as long as it takes for the unit to be saved.
 - proper threading of `context.Context` with `database/sql`.
 
+## Getting Started
+
+Ready to get moving? Head over to the [Getting Started][getting-started] page in the wiki.
+
 ## Release information
 
-| Version | Supported | Documentation                 |
-|---------|-----------|-------------------------------|
-| `V4`    |  ✅       | [See][v4-docs] `v4/README.md` |
-| `V3`    |  ✅       | None                          |
-| `V2`    |  ❌       | None                          |
-| `V1`    |  ❌       | None                          |
-
-### V4
-
-#### [4.0.0-beta.5][v4.0.0-beta.5]
-
-- Introduce `unit.InsertFunc`, `unit.UpdateFunc`, and `unit.DeleteFunc` options.
-- Refactored internals to to use `unit.DataMapperFunc` instead of `unit.DataMapper`.
-- Removed `DataMappers` property from `unit.Options`.
-- Renamed `work.DataMapper` to `work.UnitDataMapper` for consistency.
-
-#### [4.0.0-beta.4][v4.0.0-beta.4]
-
-- Introduces the work unit cache.
-  - Each time the `Register` method is called, the provided entities will be placed in a cache if deemed eligible (have implemented the `identifierer` or `ider` interfaces).
-  - Entities will be removed from the cache if specified to `Alter` or `Remove`.
-
-#### [4.0.0-beta.3][v4.0.0-beta.3]
-
-- Various dependency upgrades to address vulnerability [alerts][dependabot-alerts].
-	- Upgraded `github.com/uber-go/tally` dependency to version `v3.4.2`.
-	- Upgraded `github.com/stretchr/testify` dependency to version `v1.8.0`.
-	- Upgraded `go.uber.org/zap` dependency to version `v1.21.1`.
-
-#### [4.0.0-beta.2][v4.0.0-beta.2]
-
-- Introduce initial round of benchmarks.
-- Introduce support for 4 more additional metrics.
-  - `unit.retry.attempt`
-  - `unit.insert`
-  - `unit.update`
-  - `unit.delete`
-- Improve documentation & switch to pkg.go.dev.
-- Introduce metric demo.
-  - `make demo`
-
-#### [4.0.0-beta][v4.0.0-beta]
-
-- Introduce `unit` package for aliasing.
-  - Reduces API footprint.
-  - Often "flows" better.
-- Introduce retries and related configuration.
-- Reconsolidate data mappers abstractions into single `DataMapper` interface.
-- Introduce `MapperContext`.
-- Alter `Save` to be `context.Context` aware.
-- Refactor `work.NewUnit` to dynamically choose which type of work unit to
-  create based on provided options.
-- Reconsolidate uniter functionality.
-
-### V3
-
-#### [3.2.1][v3.2.1]
-
-- Various dependency upgrades to address vulnerability [alerts][dependabot-alerts].
-	- Upgraded `github.com/uber-go/tally` dependency to version `v3.4.2`.
-	- Upgraded `github.com/stretchr/testify` dependency to version `v1.8.0`.
-	- Upgraded `go.uber.org/zap` dependency to version `v1.21.1`.
-
-#### [3.2.0][v3.2.0]
-
-- Introduce [lifecycle actions][actions-pr].
-- Introduce [concurrency support][concurrency-pr].
-
-#### [3.0.0][v3.0.0]
-
-- Introduce support for Go modules.
-
-### V2
-
-- NO LONGER SUPPORTED. CODE REMOVED. SEE `v2.x.x` [TAGS][tags].
-
-### V1
-
-- NO LONGER SUPPORTED. CODE REMOVED. SEE `v1.x.x` [TAGS][tags].
+| Version | Supported |
+|---------|-----------|
+| `V4`    |  ✅       |
+| `V3`    |  ✅       |
+| `V2`    |  ❌       |
+| `V1`    |  ❌       |
 
 > Versions `1.x.x` and `2.x.x` are no longer supported. Please upgrade to
-`3.x.x+` to receive the latest and greatest features, such as
-[lifecycle actions][actions-pr] and [concurrency support][concurrency-pr]!
+at least `3.x.x+` to receive the latest and greatest features!
 
 ## Dependancy Information
 
@@ -169,13 +99,6 @@ how we do things.
 [blog]: https://medium.com/@freerjm/work-units-ec2da48cf574
 [blog-img]: https://img.shields.io/badge/blog-medium-lightgrey
 [v4-docs]: https://github.com/freerware/work/blob/master/v4/README.md
-[v3.2.0]: https://github.com/freerware/work/releases/tag/v3.2.0
-[v3.2.1]: https://github.com/freerware/work/releases/tag/v3.2.1
-[v3.0.0]: https://github.com/freerware/work/releases/tag/v3.0.0
-[v4.0.0-beta]: https://github.com/freerware/work/releases/tag/v4.0.0-beta
-[v4.0.0-beta.2]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.2
-[v4.0.0-beta.3]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.3
-[v4.0.0-beta.4]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.4
-[v4.0.0-beta.5]: https://github.com/freerware/work/releases/tag/v4.0.0-beta.5
 [tags]: https://github.com/freerware/work/tags
 [dependabot-alerts]: https://github.com/freerware/work/security/dependabot?q=is%3Aclosed
+[getting-started]: https://github.com/freerware/work/wiki/Getting-Started
