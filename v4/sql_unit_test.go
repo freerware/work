@@ -134,8 +134,8 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.scope = ts
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
-		work.UnitLogger(l),
-		work.UnitScope(ts),
+		work.UnitZapLogger(l),
+		work.UnitTallyMetricScope(ts),
 		work.UnitDB(s.db),
 		work.UnitRetryAttempts(s.retryCount),
 	}
@@ -181,7 +181,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
@@ -219,7 +219,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
@@ -258,7 +258,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
@@ -301,7 +301,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
@@ -344,7 +344,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
@@ -391,7 +391,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
@@ -438,7 +438,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("ouch; whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
@@ -484,7 +484,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
@@ -530,7 +530,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 1)
+				s.Len(s.scope.Snapshot().Counters(), 2)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackFailureScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 2)
 				s.Contains(s.scope.Snapshot().Timers(), s.saveScopeNameWithTags)
@@ -577,7 +577,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			ctx: context.Background(),
 			err: errors.New("whoa"),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 2)
+				s.Len(s.scope.Snapshot().Counters(), 3)
 				s.Contains(s.scope.Snapshot().Counters(), s.rollbackSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Len(s.scope.Snapshot().Timers(), 1)
@@ -617,7 +617,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 4)
+				s.Len(s.scope.Snapshot().Counters(), 5)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.updateScopeNameWithTags)
@@ -677,7 +677,7 @@ func (s *SQLUnitTestSuite) subtests() []TableDrivenTest {
 			},
 			ctx: context.Background(),
 			assertions: func() {
-				s.Len(s.scope.Snapshot().Counters(), 6)
+				s.Len(s.scope.Snapshot().Counters(), 7)
 				s.Contains(s.scope.Snapshot().Counters(), s.saveSuccessScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.retryAttemptScopeNameWithTags)
 				s.Contains(s.scope.Snapshot().Counters(), s.insertScopeNameWithTags)
@@ -700,9 +700,9 @@ func (s *SQLUnitTestSuite) TestSQLUnit_Save() {
 			s.Setup()
 
 			// arrange.
-			s.Require().NoError(s.sut.Add(test.additions...))
-			s.Require().NoError(s.sut.Alter(test.alters...))
-			s.Require().NoError(s.sut.Remove(test.removals...))
+			s.Require().NoError(s.sut.Add(test.ctx, test.additions...))
+			s.Require().NoError(s.sut.Alter(test.ctx, test.alters...))
+			s.Require().NoError(s.sut.Remove(test.ctx, test.removals...))
 			test.expectations(test.ctx, test.registers, test.additions, test.alters, test.removals)
 
 			// action + assert.

@@ -68,10 +68,10 @@ var (
 	// DataMappers specifies the option to provide the data mappers for
 	// the work unit.
 	DataMappers = work.UnitDataMappers
-	// Logger specifies the option to provide a logger for the work unit.
-	Logger = work.UnitLogger
-	// Scope specifies the option to provide a metric scope for the work unit.
-	Scope = work.UnitScope
+	// ZapLogger specifies the option to provide a zap logger for the work unit.
+	ZapLogger = work.UnitZapLogger
+	// TallyMetricScope specifies the option to provide a tally metric scope for the work unit.
+	TallyMetricScope = work.UnitTallyMetricScope
 	// AfterRegisterActions specifies the option to provide actions to execute
 	// after entities are registered with the work unit.
 	AfterRegisterActions = work.UnitAfterRegisterActions
@@ -136,6 +136,8 @@ var (
 	// DeleteFunc defines the function to be used for deleting existing
 	// entities in the underlying data store.
 	DeleteFunc = work.UnitDeleteFunc
+	// WithCacheClient defines the cache client to be used.
+	WithCacheClient = work.UnitWithCacheClient
 )
 
 /* Actions. */
