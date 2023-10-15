@@ -136,6 +136,8 @@ var (
 	// DeleteFunc defines the function to be used for deleting existing
 	// entities in the underlying data store.
 	DeleteFunc = work.UnitDeleteFunc
+	// WithCacheClient defines the cache client to be used.
+	WithCacheClient = work.UnitWithCacheClient
 )
 
 /* Actions. */

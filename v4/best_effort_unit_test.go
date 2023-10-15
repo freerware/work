@@ -938,10 +938,10 @@ func (s *BestEffortUnitTestSuite) TestBestEffortUnit_Save() {
 			s.Setup()
 
 			// arrange.
-			s.Require().NoError(s.sut.Register(test.registers...))
-			s.Require().NoError(s.sut.Add(test.additions...))
-			s.Require().NoError(s.sut.Alter(test.alters...))
-			s.Require().NoError(s.sut.Remove(test.removals...))
+			s.Require().NoError(s.sut.Register(test.ctx, test.registers...))
+			s.Require().NoError(s.sut.Add(test.ctx, test.additions...))
+			s.Require().NoError(s.sut.Alter(test.ctx, test.alters...))
+			s.Require().NoError(s.sut.Remove(test.ctx, test.removals...))
 			test.expectations(test.ctx, test.registers, test.additions, test.alters, test.removals)
 
 			// action + assert.

@@ -16,6 +16,7 @@
 package work
 
 import (
+	"context"
 	"testing"
 
 	"github.com/freerware/work/v4/internal/test"
@@ -35,102 +36,120 @@ func TestUnitCacheTestSuite(t *testing.T) {
 }
 
 func (s *UnitCacheTestSuite) SetupTest() {
-	s.sut = UnitCache{scope: tally.NoopScope}
+	s.sut = UnitCache{cc: &memoryCacheClient{}, scope: tally.NoopScope}
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Delete() {
 	// arrange.
+	ctx := context.Background()
 	baz := test.Baz{Identifier: "1"}
+	t := TypeNameOf(baz)
 
 	// action.
-	s.sut.delete(baz)
+	err := s.sut.delete(ctx, baz)
 
 	// assert.
-	_, ok := s.sut.Load(TypeNameOf(baz), baz.ID())
-	s.False(ok)
+	s.NoError(err)
+	cached, err := s.sut.Load(ctx, t, baz.ID())
+	s.NoError(err)
+	s.Nil(cached)
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Load_Exists() {
 	// arrange.
+	ctx := context.Background()
 	baz := test.Baz{Identifier: "1"}
-	s.sut.store(baz)
+	t := TypeNameOf(baz)
+	s.sut.store(ctx, baz)
 
 	// action.
-	actual, ok := s.sut.Load(TypeNameOf(baz), baz.ID())
+	actual, err := s.sut.Load(ctx, t, baz.ID())
 
 	// assert.
-	s.True(ok)
+	s.Require().NoError(err)
 	s.Equal(baz, actual)
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Load_EntityNotExists() {
 	// arrange.
+	ctx := context.Background()
 	baz := test.Baz{Identifier: "1"}
+	t := TypeNameOf(baz)
 
 	// action.
-	_, ok := s.sut.Load(TypeNameOf(baz), baz.ID())
+	actual, err := s.sut.Load(ctx, t, baz.ID())
 
 	// assert.
-	s.False(ok)
+	s.NoError(err)
+	s.Nil(actual)
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Load_TypeNotExists() {
 	// arrange.
+	ctx := context.Background()
 	baz := test.Baz{Identifier: "1"}
 
 	// action.
-	_, ok := s.sut.Load("main.Oops", baz.ID())
+	actual, err := s.sut.Load(ctx, "main.Oops", baz.ID())
 
 	// assert.
-	s.False(ok)
+	s.NoError(err)
+	s.Nil(actual)
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Store_DifferentID() {
 	// arrange.
+	ctx := context.Background()
 	baz := test.Baz{Identifier: "2"}
 	bar := test.Bar{ID: "1"}
+	tBaz := TypeNameOf(baz)
+	tBar := TypeNameOf(bar)
 
 	// action.
-	errBaz := s.sut.store(baz)
-	errBar := s.sut.store(bar)
+	errBaz := s.sut.store(ctx, baz)
+	errBar := s.sut.store(ctx, bar)
 
 	// assert.
 	s.NoError(errBaz)
-	actualBaz, ok := s.sut.Load(TypeNameOf(baz), baz.ID())
-	s.True(ok)
+	actualBaz, err := s.sut.Load(ctx, tBaz, baz.ID())
+	s.Require().NoError(err)
 	s.Equal(baz, actualBaz)
 	s.NoError(errBar)
-	actualBar, ok := s.sut.Load(TypeNameOf(bar), bar.Identifier())
-	s.True(ok)
+	actualBar, err := s.sut.Load(ctx, tBar, bar.Identifier())
+	s.Require().NoError(err)
 	s.Equal(bar, actualBar)
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Store_SameID() {
 	// arrange.
+	ctx := context.Background()
 	baz := test.Baz{Identifier: "1"}
 	bar := test.Bar{ID: "1"}
+	tBaz := TypeNameOf(baz)
+	tBar := TypeNameOf(bar)
 
 	// action.
-	errBaz := s.sut.store(baz)
-	errBar := s.sut.store(bar)
+	errBaz := s.sut.store(ctx, baz)
+	errBar := s.sut.store(ctx, bar)
 
 	// assert.
 	s.NoError(errBaz)
-	actualBaz, ok := s.sut.Load(TypeNameOf(baz), baz.ID())
-	s.True(ok)
+	actualBaz, err := s.sut.Load(ctx, tBaz, baz.ID())
+	s.Require().NoError(err)
 	s.Equal(baz, actualBaz)
 	s.NoError(errBar)
-	actualBar, ok := s.sut.Load(TypeNameOf(bar), bar.Identifier())
-	s.True(ok)
+	actualBar, err := s.sut.Load(ctx, tBar, bar.Identifier())
+	s.Require().NoError(err)
 	s.Equal(bar, actualBar)
 }
 
 func (s *UnitCacheTestSuite) TestUnitCache_Store_UncachableEntityError() {
 	// arrange.
+	ctx := context.Background()
 	biz := test.Biz{Identifier: "1"}
 
 	// action.
-	err := s.sut.store(biz)
+	err := s.sut.store(ctx, biz)
 
 	// assert.
 	s.Error(err)
