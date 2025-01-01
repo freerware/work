@@ -110,8 +110,8 @@ github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8
 github.com/twmb/murmur3 v1.1.5/go.mod h1:Qq/R7NUyOfr65zD+6Q5IHKsJLwP7exErjN6lyyq3OSQ=
 github.com/twmb/murmur3 v1.1.6 h1:mqrRot1BRxm+Yct+vavLMou2/iJt0tNVTTC0QoIjaZg=
 github.com/twmb/murmur3 v1.1.6/go.mod h1:Qq/R7NUyOfr65zD+6Q5IHKsJLwP7exErjN6lyyq3OSQ=
-github.com/uber-go/tally/v4 v4.1.11 h1:ktRXNpbia2cKbyAOIEdNdgkfPBzwCzIYJ20Kn6qQr7w=
-github.com/uber-go/tally/v4 v4.1.11/go.mod h1:RW5DgqsyEPs0lA4b0YNf4zKj7DveKHd73hnO6zVlyW0=
+github.com/uber-go/tally/v4 v4.1.16 h1:by2hveWRh/cUReButk6ns1sHK/hiKry7BuOV6iY16XI=
+github.com/uber-go/tally/v4 v4.1.16/go.mod h1:RW5DgqsyEPs0lA4b0YNf4zKj7DveKHd73hnO6zVlyW0=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/atomic v1.10.0 h1:9qC72Qh0+3MqyJbAn8YU5xVq1frD8bn3JtD2oXtafVQ=
