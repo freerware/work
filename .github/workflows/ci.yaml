@@ -21,16 +21,16 @@ jobs:
             "1.22",
           ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
       - name: Display Go version
         run: go version
       - name: Run Unit Tests
         run: make tests-v3
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         name: Upload Code Coverage
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -44,16 +44,16 @@ jobs:
       matrix:
         go-version: ["1.19", "1.20", "1.21", "1.22"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
       - name: Display Go version
         run: go version
       - name: Run Unit Tests
         run: make tests-v4
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         name: Upload Code Coverage
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
