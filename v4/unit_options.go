@@ -160,31 +160,31 @@ var (
 		}
 	}
 
-	// UnitZapLogger specifies the option to provide a Zap logger for the
+	// UnitWithZapLogger specifies the option to provide a Zap logger for the
 	// work unit.
-	UnitZapLogger = func(l *zap.Logger) UnitOption {
-		return UnitLogger(adapters.NewZapLogger(l))
+	UnitWithZapLogger = func(l *zap.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewZapLogger(l))
 	}
 
-	// UnitStandardLogger specifies the option to provide a logger as defined
+	// UnitWithStandardLogger specifies the option to provide a logger as defined
 	// in the 'log' standard library package for the work unit.
-	UnitStandardLogger = func(l *log.Logger) UnitOption {
-		return UnitLogger(adapters.NewStandardLogger(l))
+	UnitWithStandardLogger = func(l *log.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewStandardLogger(l))
 	}
 
-	// UnitStructuredLogger specifies the option to provide a structured logger as defined
+	// UnitWithStructuredLogger specifies the option to provide a structured logger as defined
 	// in the 'log/slog' standard library package for the work unit.
-	UnitStructuredLogger = func(l *slog.Logger) UnitOption {
-		return UnitLogger(adapters.NewStructuredLogger(l))
+	UnitWithStructuredLogger = func(l *slog.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewStructuredLogger(l))
 	}
 
-	// UnitLogrusLogger specifies the option to provide a Logrus logger for the work unit.
-	UnitLogrusLogger = func(l *logrus.Logger) UnitOption {
-		return UnitLogger(l)
+	// UnitWithLogrusLogger specifies the option to provide a Logrus logger for the work unit.
+	UnitWithLogrusLogger = func(l *logrus.Logger) UnitOption {
+		return UnitWithLogger(l)
 	}
 
-	// UnitLogger specifies the option to provide a custom logger for the work unit.
-	UnitLogger = func(l Logger) UnitOption {
+	// UnitWithLogger specifies the option to provide a custom logger for the work unit.
+	UnitWithLogger = func(l Logger) UnitOption {
 		return func(o *UnitOptions) {
 			o.logger = l
 		}

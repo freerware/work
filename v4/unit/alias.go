@@ -70,17 +70,17 @@ var (
 	// the work unit.
 	DataMappers = work.UnitDataMappers
 	// WithZapLogger specifies the option to provide a Zap logger for the work unit.
-	WithZapLogger = work.UnitZapLogger
+	WithZapLogger = work.UnitWithZapLogger
 	// WithLogger specifies the option to provide a custom logger for the work unit.
-	WithLogger = work.UnitLogger
+	WithLogger = work.UnitWithLogger
 	// WithLogrusLogger specifies the option to provide a Logrus logger for the work unit.
-	WithLogrusLogger = work.UnitLogrusLogger
+	WithLogrusLogger = work.UnitWithLogrusLogger
 	// WithStandardLogger specifies the option to provide a logger as defined
 	// in the 'log' standard library package for the work unit.
-	WithStandardLogger = work.UnitStandardLogger
+	WithStandardLogger = work.UnitWithStandardLogger
 	// WithStructuredLogger specifies the option to provide a structured logger as defined
 	// in the 'log/slog' standard library package for the work unit.
-	WithStructuredLogger = work.UnitStructuredLogger
+	WithStructuredLogger = work.UnitWithStructuredLogger
 	// TallyMetricScope specifies the option to provide a tally metric scope for the work unit.
 	TallyMetricScope = work.UnitTallyMetricScope
 	// AfterRegisterActions specifies the option to provide actions to execute

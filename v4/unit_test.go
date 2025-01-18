@@ -82,7 +82,7 @@ func (s *UnitTestSuite) SetupTest() {
 	ts := tally.NewTestScope(s.scopePrefix, map[string]string{})
 	s.scope = ts
 	var err error
-	opts := []work.UnitOption{work.UnitDataMappers(dm), work.UnitZapLogger(l), work.UnitTallyMetricScope(ts)}
+	opts := []work.UnitOption{work.UnitDataMappers(dm), work.UnitWithZapLogger(l), work.UnitTallyMetricScope(ts)}
 	s.sut, err = work.NewUnit(opts...)
 	s.Require().NoError(err)
 }

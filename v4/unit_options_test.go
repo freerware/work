@@ -128,7 +128,7 @@ func (s *UnitOptionsTestSuite) TestUnitZapLogger() {
 	l, _ := c.Build()
 
 	// action.
-	UnitZapLogger(l)(s.sut)
+	UnitWithZapLogger(l)(s.sut)
 
 	// assert.
 	s.IsType(&adapters.ZapLogger{}, s.sut.logger)
@@ -139,7 +139,7 @@ func (s *UnitOptionsTestSuite) TestUnitStandardLogger() {
 	l := log.Default()
 
 	// action.
-	UnitStandardLogger(l)(s.sut)
+	UnitWithStandardLogger(l)(s.sut)
 
 	// assert.
 	s.IsType(&adapters.StandardLogger{}, s.sut.logger)
@@ -150,7 +150,7 @@ func (s *UnitOptionsTestSuite) TestUnitStructuredLogger() {
 	l := slog.Default()
 
 	// action.
-	UnitStructuredLogger(l)(s.sut)
+	UnitWithStructuredLogger(l)(s.sut)
 
 	// assert.
 	s.IsType(&adapters.StructuredLogger{}, s.sut.logger)
@@ -161,7 +161,7 @@ func (s *UnitOptionsTestSuite) TestUnitLogrusLogger() {
 	l := logrus.StandardLogger()
 
 	// action.
-	UnitLogrusLogger(l)(s.sut)
+	UnitWithLogrusLogger(l)(s.sut)
 
 	// assert.
 	s.IsType(&logrus.Logger{}, s.sut.logger)
@@ -172,7 +172,7 @@ func (s *UnitOptionsTestSuite) TestUnitLogger() {
 	l := logrus.StandardLogger()
 
 	// action.
-	UnitLogger(l)(s.sut)
+	UnitWithLogger(l)(s.sut)
 
 	// assert.
 	s.IsType(&logrus.Logger{}, s.sut.logger)
