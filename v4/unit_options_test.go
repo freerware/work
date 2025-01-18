@@ -17,11 +17,15 @@ package work
 
 import (
 	"context"
+	"log"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/freerware/work/v4/internal/adapters"
 	"github.com/freerware/work/v4/internal/test"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
@@ -117,7 +121,7 @@ func (s *UnitOptionsTestSuite) TestUnitDeleteFunc() {
 	s.NotNil(s.sut.deleteFuncs)
 }
 
-func (s *UnitOptionsTestSuite) TestUnitLogger() {
+func (s *UnitOptionsTestSuite) TestUnitZapLogger() {
 	// arrange.
 	c := zap.NewDevelopmentConfig()
 	c.DisableStacktrace = true
@@ -127,7 +131,51 @@ func (s *UnitOptionsTestSuite) TestUnitLogger() {
 	UnitZapLogger(l)(s.sut)
 
 	// assert.
-	s.Equal(l, s.sut.logger)
+	s.IsType(&adapters.ZapLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitStandardLogger() {
+	// arrange.
+	l := log.Default()
+
+	// action.
+	UnitStandardLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&adapters.StandardLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitStructuredLogger() {
+	// arrange.
+	l := slog.Default()
+
+	// action.
+	UnitStructuredLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&adapters.StructuredLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitLogrusLogger() {
+	// arrange.
+	l := logrus.StandardLogger()
+
+	// action.
+	UnitLogrusLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&logrus.Logger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitLogger() {
+	// arrange.
+	l := logrus.StandardLogger()
+
+	// action.
+	UnitLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&logrus.Logger{}, s.sut.logger)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitScope() {

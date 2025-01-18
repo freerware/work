@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/freerware/work/v4/internal/adapters"
 	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
 )
@@ -88,7 +89,7 @@ type unit struct {
 	alterationCount int
 	removalCount    int
 	registerCount   int
-	logger          *zap.Logger
+	logger          Logger
 	scope           tally.Scope
 	actions         map[UnitActionType][]UnitAction
 	mutex           sync.RWMutex
@@ -102,7 +103,7 @@ type unit struct {
 func options(options []UnitOption) UnitOptions {
 	// set defaults.
 	o := UnitOptions{
-		logger:             zap.NewNop(),
+		logger:             adapters.NewZapLogger(zap.NewNop()),
 		scope:              tally.NoopScope,
 		actions:            make(map[UnitActionType][]UnitAction),
 		retryAttempts:      3,

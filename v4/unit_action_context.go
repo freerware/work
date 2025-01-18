@@ -17,13 +17,12 @@ package work
 
 import (
 	"github.com/uber-go/tally/v4"
-	"go.uber.org/zap"
 )
 
 // UnitActionContext represents the executional context for an action.
 type UnitActionContext struct {
 	// Logger is the work units configured logger.
-	Logger *zap.Logger
+	Logger Logger
 	// Scope is the work units configured metrics scope.
 	Scope tally.Scope
 	// AdditionCount represents the number of entities indicated as new.

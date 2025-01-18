@@ -18,17 +18,21 @@ package work
 import (
 	"context"
 	"database/sql"
+	"log"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/freerware/work/v4/internal/adapters"
+	"github.com/sirupsen/logrus"
 	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
 )
 
 // UnitOptions represents the configuration options for the work unit.
 type UnitOptions struct {
-	logger                       *zap.Logger
+	logger                       Logger
 	scope                        tally.Scope
 	actions                      map[UnitActionType][]UnitAction
 	disableDefaultLoggingActions bool
@@ -156,9 +160,31 @@ var (
 		}
 	}
 
-	// UnitZapLogger specifies the option to provide a zap logger for the
+	// UnitZapLogger specifies the option to provide a Zap logger for the
 	// work unit.
 	UnitZapLogger = func(l *zap.Logger) UnitOption {
+		return UnitLogger(adapters.NewZapLogger(l))
+	}
+
+	// UnitStandardLogger specifies the option to provide a logger as defined
+	// in the 'log' standard library package for the work unit.
+	UnitStandardLogger = func(l *log.Logger) UnitOption {
+		return UnitLogger(adapters.NewStandardLogger(l))
+	}
+
+	// UnitStructuredLogger specifies the option to provide a structured logger as defined
+	// in the 'log/slog' standard library package for the work unit.
+	UnitStructuredLogger = func(l *slog.Logger) UnitOption {
+		return UnitLogger(adapters.NewStructuredLogger(l))
+	}
+
+	// UnitLogrusLogger specifies the option to provide a Logrus logger for the work unit.
+	UnitLogrusLogger = func(l *logrus.Logger) UnitOption {
+		return UnitLogger(l)
+	}
+
+	// UnitLogger specifies the option to provide a custom logger for the work unit.
+	UnitLogger = func(l Logger) UnitOption {
 		return func(o *UnitOptions) {
 			o.logger = l
 		}
