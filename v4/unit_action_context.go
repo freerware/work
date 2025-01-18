@@ -22,7 +22,7 @@ import (
 // UnitActionContext represents the executional context for an action.
 type UnitActionContext struct {
 	// Logger is the work units configured logger.
-	Logger Logger
+	Logger UnitLogger
 	// Scope is the work units configured metrics scope.
 	Scope tally.Scope
 	// AdditionCount represents the number of entities indicated as new.

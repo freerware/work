@@ -15,8 +15,8 @@
 
 package work
 
-// Logger represents a type responsible for performing logging behaviors.
-type Logger interface {
+// UnitLogger represents a type responsible for performing logging behaviors.
+type UnitLogger interface {
 	// Debug logs the provided arguments as a 'debug' level message.
 	Debug(...any)
 

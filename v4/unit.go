@@ -89,7 +89,7 @@ type unit struct {
 	alterationCount int
 	removalCount    int
 	registerCount   int
-	logger          Logger
+	logger          UnitLogger
 	scope           tally.Scope
 	actions         map[UnitActionType][]UnitAction
 	mutex           sync.RWMutex

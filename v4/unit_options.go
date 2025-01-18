@@ -32,7 +32,7 @@ import (
 
 // UnitOptions represents the configuration options for the work unit.
 type UnitOptions struct {
-	logger                       Logger
+	logger                       UnitLogger
 	scope                        tally.Scope
 	actions                      map[UnitActionType][]UnitAction
 	disableDefaultLoggingActions bool
@@ -184,7 +184,7 @@ var (
 	}
 
 	// UnitWithLogger specifies the option to provide a custom logger for the work unit.
-	UnitWithLogger = func(l Logger) UnitOption {
+	UnitWithLogger = func(l UnitLogger) UnitOption {
 		return func(o *UnitOptions) {
 			o.logger = l
 		}
