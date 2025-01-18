@@ -230,3 +230,8 @@ type DataMapper = work.UnitDataMapper
 // DataMapperFunc represents a data mapper function that performs a single
 // operation, such as insert, update, or delete.
 type DataMapperFunc = work.UnitDataMapperFunc
+
+/* Logging. */
+
+// Logger represents a logger.
+type Logger = work.UnitLogger
