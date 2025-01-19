@@ -21,7 +21,6 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 )
 
 var (
@@ -43,11 +42,11 @@ type bestEffortUnit struct {
 
 func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//delete successfully inserted entities.
-	u.logger.Debug("attempting to rollback inserted entities", zap.Int("count", u.successfulInsertCount))
+	u.logger.Debug("attempting to rollback inserted entities", "count", u.successfulInsertCount)
 	for typeName, i := range u.successfulInserts {
 		if f, ok := u.deleteFunc(typeName); ok {
 			if err = f(ctx, mCtx, i...); err != nil {
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 		}
@@ -57,11 +56,11 @@ func (u *bestEffortUnit) rollbackInserts(ctx context.Context, mCtx UnitMapperCon
 
 func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//reapply previously registered state for the entities.
-	u.logger.Debug("attempting to rollback updated entities", zap.Int("count", u.successfulUpdateCount))
+	u.logger.Debug("attempting to rollback updated entities", "count", u.successfulUpdateCount)
 	for typeName, r := range u.registered {
 		if f, ok := u.updateFunc(typeName); ok {
 			if err = f(ctx, mCtx, r...); err != nil {
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 		}
@@ -71,11 +70,11 @@ func (u *bestEffortUnit) rollbackUpdates(ctx context.Context, mCtx UnitMapperCon
 
 func (u *bestEffortUnit) rollbackDeletes(ctx context.Context, mCtx UnitMapperContext) (err error) {
 	//reinsert successfully deleted entities.
-	u.logger.Debug("attempting to rollback deleted entities", zap.Int("count", u.successfulDeleteCount))
+	u.logger.Debug("attempting to rollback deleted entities", "count", u.successfulDeleteCount)
 	for typeName, d := range u.successfulDeletes {
 		if f, ok := u.insertFunc(typeName); ok {
 			if err = f(ctx, mCtx, d...); err != nil {
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 		}
@@ -92,7 +91,7 @@ func (u *bestEffortUnit) rollback(ctx context.Context, mCtx UnitMapperContext) (
 		stop()
 		if r := recover(); r != nil {
 			msg := "panic: unable to rollback work unit"
-			u.logger.Error(msg, zap.String("panic", fmt.Sprintf("%v", r)))
+			u.logger.Error(msg, "panic", fmt.Sprintf("%v", r))
 			u.scope.Counter(rollbackFailure).Inc(1)
 			panic(r)
 		}
@@ -128,7 +127,7 @@ func (u *bestEffortUnit) applyInserts(ctx context.Context, mCtx UnitMapperContex
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
 				err = multierr.Combine(err, errRollback)
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 			if _, ok := u.successfulInserts[typeName]; !ok {
@@ -152,7 +151,7 @@ func (u *bestEffortUnit) applyUpdates(ctx context.Context, mCtx UnitMapperContex
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
 				err = multierr.Combine(err, errRollback)
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 			if _, ok := u.successfulUpdates[typeName]; !ok {
@@ -176,7 +175,7 @@ func (u *bestEffortUnit) applyDeletes(ctx context.Context, mCtx UnitMapperContex
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
 				err = multierr.Combine(err, errRollback)
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 			if _, ok := u.successfulDeletes[typeName]; !ok {
@@ -244,8 +243,7 @@ func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
 			}
 			err = multierr.Combine(
 				fmt.Errorf("panic: unable to save work unit\n%v", r), err)
-			u.logger.Error("panic: unable to save work unit",
-				zap.String("panic", fmt.Sprintf("%v", r)))
+			u.logger.Error("panic: unable to save work unit", "panic", fmt.Sprintf("%v", r))
 			panic(r)
 		}
 		if err == nil {
@@ -261,11 +259,7 @@ func (u *bestEffortUnit) Save(ctx context.Context) (err error) {
 		retry.OnRetry(func(attempt uint, err error) {
 			u.resetSuccesses()
 			u.resetSuccessCounts()
-			u.logger.Warn(
-				"attempted retry",
-				zap.Int("attempt", int(attempt+1)),
-				zap.Error(err),
-			)
+			u.logger.Warn("attempted retry", "attempt", int(attempt+1), "error", err.Error())
 			u.scope.Counter(retryAttempt).Inc(1)
 		})
 	u.retryOptions = append(u.retryOptions, retry.Context(ctx), onRetry)

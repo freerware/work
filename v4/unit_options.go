@@ -295,53 +295,34 @@ var (
 	// UnitDefaultLoggingActions specifies all of the default logging actions.
 	UnitDefaultLoggingActions = func() UnitOption {
 		beforeInsertLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"attempting to insert entities",
-				zap.Int("count", ctx.AdditionCount),
-			)
+			ctx.Logger.Debug("attempting to insert entities", "count", ctx.AdditionCount)
 		}
 		afterInsertLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"successfully inserted entities",
-				zap.Int("count", ctx.AdditionCount),
-			)
+			ctx.Logger.Debug("successfully inserted entities", "count", ctx.AdditionCount)
 		}
 		beforeUpdateLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"attempting to update entities",
-				zap.Int("count", ctx.AlterationCount),
-			)
+			ctx.Logger.Debug("attempting to update entities", "count", ctx.AlterationCount)
 		}
 		afterUpdateLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"successfully updated entities",
-				zap.Int("count", ctx.AlterationCount),
-			)
+			ctx.Logger.Debug("successfully updated entities", "count", ctx.AlterationCount)
 		}
 		beforeDeleteLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"attempting to delete entities",
-				zap.Int("count", ctx.RemovalCount),
-			)
+			ctx.Logger.Debug("attempting to delete entities", "count", ctx.RemovalCount)
 		}
 		afterDeleteLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"successfully deleted entities",
-				zap.Int("count", ctx.RemovalCount),
-			)
+			ctx.Logger.Debug("successfully deleted entities", "count", ctx.RemovalCount)
 		}
 		beforeSaveLogAction := func(ctx UnitActionContext) {
 			ctx.Logger.Debug("attempting to save unit")
 		}
 		afterSaveLogAction := func(ctx UnitActionContext) {
-			totalCount :=
-				ctx.AdditionCount + ctx.AlterationCount + ctx.RemovalCount
+			totalCount := ctx.AdditionCount + ctx.AlterationCount + ctx.RemovalCount
 			ctx.Logger.Info("successfully saved unit",
-				zap.Int("insertCount", ctx.AdditionCount),
-				zap.Int("updateCount", ctx.AlterationCount),
-				zap.Int("deleteCount", ctx.RemovalCount),
-				zap.Int("registerCount", ctx.RegisterCount),
-				zap.Int("totalUpdateCount", totalCount))
+				"insertCount", ctx.AdditionCount,
+				"updateCount", ctx.AlterationCount,
+				"deleteCount", ctx.RemovalCount,
+				"registerCount", ctx.RegisterCount,
+				"totalUpdateCount", totalCount)
 		}
 		beforeRollbackLogAction := func(ctx UnitActionContext) {
 			ctx.Logger.Debug("attempting to roll back unit")
