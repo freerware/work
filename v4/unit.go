@@ -136,7 +136,7 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		retry.DelayType(options.retryType.convert()),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
-			options.logger.Warn("attempted retry", "attempt", int(attempt+1), "error", err)
+			options.logger.Warn("attempted retry", "attempt", int(attempt+1), "error", err.Error())
 			options.scope.Counter(retryAttempt).Inc(1)
 		}),
 	}
