@@ -42,27 +42,27 @@ func (adapter *StructuredLogger) message(args ...any) (msg string, ok bool) {
 // Debug logs the provided arguments as a 'debug' level message.
 func (adapter *StructuredLogger) Debug(args ...any) {
 	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Debug(msg, args...)
+		adapter.l.Debug(msg, args[1:]...)
 	}
 }
 
 // Info logs the provided arguments as a 'info' level message.
 func (adapter *StructuredLogger) Info(args ...any) {
 	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Info(msg, args...)
+		adapter.l.Info(msg, args[1:]...)
 	}
 }
 
 // Warn logs the provided arguments as a 'warn' level message.
 func (adapter *StructuredLogger) Warn(args ...any) {
 	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Warn(msg, args...)
+		adapter.l.Warn(msg, args[1:]...)
 	}
 }
 
 // Error logs the provided arguments as an 'error' level message.
 func (adapter *StructuredLogger) Error(args ...any) {
 	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Error(msg, args...)
+		adapter.l.Error(msg, args[1:]...)
 	}
 }

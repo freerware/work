@@ -29,22 +29,40 @@ func NewZapLogger(logger *zap.Logger) *ZapLogger {
 	return &ZapLogger{l: logger}
 }
 
+// message extracts the message from the provided arguments.
+func (adapter *ZapLogger) message(args ...any) (msg string, ok bool) {
+	if len(args) == 0 {
+		return
+	}
+
+	msg, ok = args[0].(string)
+	return
+}
+
 // Debug logs the provided arguments as a 'debug' level message.
 func (adapter *ZapLogger) Debug(args ...any) {
-	adapter.l.Sugar().Debug(args...)
+	if msg, ok := adapter.message(args...); ok {
+		adapter.l.Sugar().Debugw(msg, args[1:]...)
+	}
 }
 
 // Info logs the provided arguments as a 'info' level message.
 func (adapter *ZapLogger) Info(args ...any) {
-	adapter.l.Sugar().Info(args...)
+	if msg, ok := adapter.message(args...); ok {
+		adapter.l.Sugar().Infow(msg, args[1:]...)
+	}
 }
 
 // Warn logs the provided arguments as a 'warn' level message.
 func (adapter *ZapLogger) Warn(args ...any) {
-	adapter.l.Sugar().Warn(args...)
+	if msg, ok := adapter.message(args...); ok {
+		adapter.l.Sugar().Warnw(msg, args[1:]...)
+	}
 }
 
 // Error logs the provided arguments as an 'error' level message.
 func (adapter *ZapLogger) Error(args ...any) {
-	adapter.l.Sugar().Error(args...)
+	if msg, ok := adapter.message(args...); ok {
+		adapter.l.Sugar().Errorw(msg, args[1:]...)
+	}
 }
