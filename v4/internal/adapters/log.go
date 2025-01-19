@@ -19,26 +19,32 @@ import (
 	"log"
 )
 
+// StandardLogger represents an adapter for the standard logger.
 type StandardLogger struct {
 	l *log.Logger
 }
 
+// NewStandardLogger creates a standard logger adapter for the provided logger.
 func NewStandardLogger(logger *log.Logger) *StandardLogger {
 	return &StandardLogger{l: logger}
 }
 
+// Debug logs the provided arguments as a 'debug' level message.
 func (adapter *StandardLogger) Debug(args ...any) {
 	adapter.l.Println(args...)
 }
 
+// Info logs the provided arguments as a 'info' level message.
 func (adapter *StandardLogger) Info(args ...any) {
 	adapter.l.Println(args...)
 }
 
+// Warn logs the provided arguments as a 'warn' level message.
 func (adapter *StandardLogger) Warn(args ...any) {
 	adapter.l.Println(args...)
 }
 
+// Error logs the provided arguments as an 'error' level message.
 func (adapter *StandardLogger) Error(args ...any) {
 	adapter.l.Println(args...)
 }

@@ -19,26 +19,32 @@ import (
 	"go.uber.org/zap"
 )
 
+// ZapLogger represents an adapter for the Zap logger.
 type ZapLogger struct {
 	l *zap.Logger
 }
 
+// NewZapLogger creates a Zap logger adapter for the provided logger.
 func NewZapLogger(logger *zap.Logger) *ZapLogger {
 	return &ZapLogger{l: logger}
 }
 
+// Debug logs the provided arguments as a 'debug' level message.
 func (adapter *ZapLogger) Debug(args ...any) {
 	adapter.l.Sugar().Debug(args...)
 }
 
+// Info logs the provided arguments as a 'info' level message.
 func (adapter *ZapLogger) Info(args ...any) {
 	adapter.l.Sugar().Info(args...)
 }
 
+// Warn logs the provided arguments as a 'warn' level message.
 func (adapter *ZapLogger) Warn(args ...any) {
 	adapter.l.Sugar().Warn(args...)
 }
 
+// Error logs the provided arguments as an 'error' level message.
 func (adapter *ZapLogger) Error(args ...any) {
 	adapter.l.Sugar().Error(args...)
 }

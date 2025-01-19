@@ -26,6 +26,6 @@ type UnitLogger interface {
 	// Warn logs the provided arguments as a 'warn' level message.
 	Warn(...any)
 
-	// Warn logs the provided arguments as an 'error' level message.
+	// Error logs the provided arguments as an 'error' level message.
 	Error(...any)
 }
