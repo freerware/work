@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,21 @@ package work
 import (
 	"context"
 	"database/sql"
+	"log"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/freerware/work/v4/internal/adapters"
+	"github.com/sirupsen/logrus"
 	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
 )
 
 // UnitOptions represents the configuration options for the work unit.
 type UnitOptions struct {
-	logger                       *zap.Logger
+	logger                       UnitLogger
 	scope                        tally.Scope
 	actions                      map[UnitActionType][]UnitAction
 	disableDefaultLoggingActions bool
@@ -43,6 +47,7 @@ type UnitOptions struct {
 	updateFuncsLen               int
 	deleteFuncs                  map[TypeName]UnitDataMapperFunc
 	deleteFuncsLen               int
+	cacheClient                  UnitCacheClient
 }
 
 func (uo *UnitOptions) totalDataMapperFuncs() int {
@@ -155,9 +160,31 @@ var (
 		}
 	}
 
-	// UnitZapLogger specifies the option to provide a zap logger for the
+	// UnitWithZapLogger specifies the option to provide a Zap logger for the
 	// work unit.
-	UnitZapLogger = func(l *zap.Logger) UnitOption {
+	UnitWithZapLogger = func(l *zap.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewZapLogger(l))
+	}
+
+	// UnitWithStandardLogger specifies the option to provide a logger as defined
+	// in the 'log' standard library package for the work unit.
+	UnitWithStandardLogger = func(l *log.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewStandardLogger(l))
+	}
+
+	// UnitWithStructuredLogger specifies the option to provide a structured logger as defined
+	// in the 'log/slog' standard library package for the work unit.
+	UnitWithStructuredLogger = func(l *slog.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewStructuredLogger(l))
+	}
+
+	// UnitWithLogrusLogger specifies the option to provide a Logrus logger for the work unit.
+	UnitWithLogrusLogger = func(l *logrus.Logger) UnitOption {
+		return UnitWithLogger(adapters.NewLogrusLogger(l))
+	}
+
+	// UnitWithLogger specifies the option to provide a custom logger for the work unit.
+	UnitWithLogger = func(l UnitLogger) UnitOption {
 		return func(o *UnitOptions) {
 			o.logger = l
 		}
@@ -268,53 +295,34 @@ var (
 	// UnitDefaultLoggingActions specifies all of the default logging actions.
 	UnitDefaultLoggingActions = func() UnitOption {
 		beforeInsertLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"attempting to insert entities",
-				zap.Int("count", ctx.AdditionCount),
-			)
+			ctx.Logger.Debug("attempting to insert entities", "count", ctx.AdditionCount)
 		}
 		afterInsertLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"successfully inserted entities",
-				zap.Int("count", ctx.AdditionCount),
-			)
+			ctx.Logger.Debug("successfully inserted entities", "count", ctx.AdditionCount)
 		}
 		beforeUpdateLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"attempting to update entities",
-				zap.Int("count", ctx.AlterationCount),
-			)
+			ctx.Logger.Debug("attempting to update entities", "count", ctx.AlterationCount)
 		}
 		afterUpdateLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"successfully updated entities",
-				zap.Int("count", ctx.AlterationCount),
-			)
+			ctx.Logger.Debug("successfully updated entities", "count", ctx.AlterationCount)
 		}
 		beforeDeleteLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"attempting to delete entities",
-				zap.Int("count", ctx.RemovalCount),
-			)
+			ctx.Logger.Debug("attempting to delete entities", "count", ctx.RemovalCount)
 		}
 		afterDeleteLogAction := func(ctx UnitActionContext) {
-			ctx.Logger.Debug(
-				"successfully deleted entities",
-				zap.Int("count", ctx.RemovalCount),
-			)
+			ctx.Logger.Debug("successfully deleted entities", "count", ctx.RemovalCount)
 		}
 		beforeSaveLogAction := func(ctx UnitActionContext) {
 			ctx.Logger.Debug("attempting to save unit")
 		}
 		afterSaveLogAction := func(ctx UnitActionContext) {
-			totalCount :=
-				ctx.AdditionCount + ctx.AlterationCount + ctx.RemovalCount
+			totalCount := ctx.AdditionCount + ctx.AlterationCount + ctx.RemovalCount
 			ctx.Logger.Info("successfully saved unit",
-				zap.Int("insertCount", ctx.AdditionCount),
-				zap.Int("updateCount", ctx.AlterationCount),
-				zap.Int("deleteCount", ctx.RemovalCount),
-				zap.Int("registerCount", ctx.RegisterCount),
-				zap.Int("totalUpdateCount", totalCount))
+				"insertCount", ctx.AdditionCount,
+				"updateCount", ctx.AlterationCount,
+				"deleteCount", ctx.RemovalCount,
+				"registerCount", ctx.RegisterCount,
+				"totalUpdateCount", totalCount)
 		}
 		beforeRollbackLogAction := func(ctx UnitActionContext) {
 			ctx.Logger.Debug("attempting to roll back unit")
@@ -413,6 +421,13 @@ var (
 			}
 			o.deleteFuncs[t] = deleteFunc
 			o.deleteFuncsLen = o.deleteFuncsLen + 1
+		}
+	}
+
+	// UnitWithCacheClient defines the cache client to be used.
+	UnitWithCacheClient = func(cc UnitCacheClient) UnitOption {
+		return func(o *UnitOptions) {
+			o.cacheClient = cc
 		}
 	}
 )

@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ func setupEntities() (entities []interface{}) {
 
 // BenchmarkRegister benchmarks the Register method for work units.
 func BenchmarkRegister(b *testing.B) {
+	ctx := context.Background()
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
 		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
@@ -46,7 +47,7 @@ func BenchmarkRegister(b *testing.B) {
 			b.FailNow()
 		}
 		b.StartTimer()
-		if err = unit.Register(entities...); err != nil {
+		if err = unit.Register(ctx, entities...); err != nil {
 			b.FailNow()
 		}
 		b.StopTimer()
@@ -55,6 +56,7 @@ func BenchmarkRegister(b *testing.B) {
 
 // BenchmarkAdd benchmarks the Add method for work units.
 func BenchmarkAdd(b *testing.B) {
+	ctx := context.Background()
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
 		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
@@ -67,7 +69,7 @@ func BenchmarkAdd(b *testing.B) {
 			b.FailNow()
 		}
 		b.StartTimer()
-		if err = unit.Add(entities...); err != nil {
+		if err = unit.Add(ctx, entities...); err != nil {
 			b.FailNow()
 		}
 		b.StopTimer()
@@ -76,6 +78,7 @@ func BenchmarkAdd(b *testing.B) {
 
 // BenchmarkAlter benchmarks the Alter method for work units.
 func BenchmarkAlter(b *testing.B) {
+	ctx := context.Background()
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
 		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
@@ -88,7 +91,7 @@ func BenchmarkAlter(b *testing.B) {
 			b.FailNow()
 		}
 		b.StartTimer()
-		if err = unit.Alter(entities...); err != nil {
+		if err = unit.Alter(ctx, entities...); err != nil {
 			b.FailNow()
 		}
 		b.StopTimer()
@@ -97,6 +100,7 @@ func BenchmarkAlter(b *testing.B) {
 
 // BenchmarkRemove benchmarks the Remove method for work units.
 func BenchmarkRemove(b *testing.B) {
+	ctx := context.Background()
 	entities := setupEntities()
 	mappers := map[unit.TypeName]unit.DataMapper{
 		unit.TypeNameOf(test.Foo{}): NoOpDataMapper{},
@@ -109,7 +113,7 @@ func BenchmarkRemove(b *testing.B) {
 			b.FailNow()
 		}
 		b.StartTimer()
-		if err = unit.Remove(entities...); err != nil {
+		if err = unit.Remove(ctx, entities...); err != nil {
 			b.FailNow()
 		}
 		b.StopTimer()
@@ -132,13 +136,13 @@ func BenchmarkSave(b *testing.B) {
 			if err != nil {
 				b.FailNow()
 			}
-			if err = unit.Add(entities...); err != nil {
+			if err = unit.Add(ctx, entities...); err != nil {
 				b.FailNow()
 			}
-			if err = unit.Alter(entities...); err != nil {
+			if err = unit.Alter(ctx, entities...); err != nil {
 				b.FailNow()
 			}
-			if err = unit.Remove(entities...); err != nil {
+			if err = unit.Remove(ctx, entities...); err != nil {
 				b.FailNow()
 			}
 			b.StartTimer()
