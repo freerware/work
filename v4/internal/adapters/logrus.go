@@ -19,7 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// LogrusLogger represents an adapter for the Zap logger.
+// LogrusLogger represents an adapter for the Logrus logger.
 type LogrusLogger struct {
 	l *logrus.Logger
 }
