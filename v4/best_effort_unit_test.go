@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ func (s *BestEffortUnitTestSuite) Setup() {
 	var err error
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
-		work.UnitZapLogger(l),
+		work.UnitWithZapLogger(l),
 		work.UnitTallyMetricScope(ts),
 		work.UnitRetryAttempts(s.retryCount),
 	}
@@ -151,7 +151,7 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 
 func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 	foos := []interface{}{test.Foo{ID: 28}, test.Foo{ID: 1992}, test.Foo{ID: 2}, test.Foo{ID: 1111}}
-	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}}
+	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}, test.Bar{ID: "2022"}}
 	fooType, barType := work.TypeNameOf(test.Foo{}), work.TypeNameOf(test.Bar{})
 	return []TableDrivenTest{
 		{
@@ -461,28 +461,51 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			name:      "DeleteAndRollbackError",
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
-			removals:  []interface{}{foos[2]},
+			removals:  []interface{}{foos[2], bars[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				// arrange - successfully apply inserts.
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				for i := 0; i < s.retryCount; i++ {
-					// arrange - successfully apply updates.
-					applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-					applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).AnyTimes()
 
-					// arrange - successfully roll back updates.
-					s.mappers[fooType].EXPECT().
-						Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
-					s.mappers[barType].EXPECT().
-						Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+				// arrange - successfully apply updates.
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).AnyTimes()
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).AnyTimes()
 
-					// arrange - encounter delete error.
-					applyDelete := s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				// arrange - encounter delete error.
+				// this looks a bit insane because it is. since internally
+				// the units store a map of data mappers, and also because Golang
+				// doesn't have deterministic ordering of map keys, the below solves
+				// the edge case where the call to Delete that is suppose to fail is ran prior to
+				// the call to Delete that should succeed. the call that should succeed MUST be ran first,
+				// because the rollback error we simulate here can only occur if at least
+				// one entity was successfully deleted.
+				var a int
+				var b int
+				m := map[int]bool{0: false, 1: false, 2: false}
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).DoAndReturn(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) error {
+						a += 1
+						if !m[a] {
+							m[a] = true
+							return nil
+						}
+						return errors.New("whoa")
+					},
+				).AnyTimes()
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), removals[1]).DoAndReturn(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) error {
+						b += 1
+						if !m[b] {
+							m[b] = true
+							return nil
+						}
+						return errors.New("whoa")
+					},
+				).AnyTimes()
 
-					// arrange - encounter error when rolling back inserts.
-					s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).After(applyDelete)
-				}
+				// arrange - encounter error when rolling back deletes.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), removals[0]).Return(errors.New("ouch")).AnyTimes()
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), removals[1]).Return(errors.New("ouch")).AnyTimes()
 			},
 			ctx:        context.Background(),
 			err:        errors.New("whoa; ouch"),
@@ -492,28 +515,51 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			name:      "DeleteAndRollbackError_MetricsEmitted",
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
-			removals:  []interface{}{foos[2]},
+			removals:  []interface{}{foos[2], bars[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
 				// arrange - successfully apply inserts.
-				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
-				for i := 0; i < s.retryCount; i++ {
-					// arrange - successfully apply updates.
-					applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-					applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).AnyTimes()
 
-					// arrange - successfully roll back updates.
-					s.mappers[fooType].EXPECT().
-						Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
-					s.mappers[barType].EXPECT().
-						Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
+				// arrange - successfully apply updates.
+				s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil).AnyTimes()
+				s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil).AnyTimes()
 
-					// arrange - encounter delete error.
-					applyDelete := s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
+				// arrange - encounter delete error.
+				// this looks a bit insane because it is. since internally
+				// the units store a map of data mappers, and also because Golang
+				// doesn't have deterministic ordering of map keys, the below solves
+				// the edge case where the call to Delete that is suppose to fail is ran prior to
+				// the call to Delete that should succeed. the call that should succeed MUST be ran first,
+				// because the rollback error we simulate here can only occur if at least
+				// one entity was successfully deleted.
+				var a int
+				var b int
+				m := map[int]bool{0: false, 1: false, 2: false}
+				s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).DoAndReturn(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) error {
+						a += 1
+						if !m[a] {
+							m[a] = true
+							return nil
+						}
+						return errors.New("whoa")
+					},
+				).AnyTimes()
+				s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), removals[1]).DoAndReturn(
+					func(_ctx context.Context, _mCtx work.UnitMapperContext, e ...interface{}) error {
+						b += 1
+						if !m[b] {
+							m[b] = true
+							return nil
+						}
+						return errors.New("whoa")
+					},
+				).AnyTimes()
 
-					// arrange - encounter error when rolling back inserts.
-					s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).After(applyDelete)
-				}
+				// arrange - encounter error when rolling back deletes.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), removals[0]).Return(errors.New("ouch")).AnyTimes()
+				s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), removals[1]).Return(errors.New("ouch")).AnyTimes()
 			},
 			ctx: context.Background(),
 			err: errors.New("whoa; ouch"),

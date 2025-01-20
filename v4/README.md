@@ -1,6 +1,7 @@
 <p align="center"><img src="https://user-images.githubusercontent.com/5921929/73911149-1dad9280-4866-11ea-8818-fed1cd49e8b1.png" width="360"></p>
 
 # work
+
 > A compact library for tracking and committing atomic changes to your entities.
 
 [![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci]
@@ -16,6 +17,7 @@
 ### Construction
 
 Starting with entities `Foo` and `Bar`,
+
 ```go
 // entities.
 f, b := Foo{}, Bar{}
@@ -32,45 +34,66 @@ unit, err := unit.New(opts...)
 ```
 
 ### Adding
+
 When creating new entities, use [`Add`][unit-doc]:
+
 ```go
 additions := []interface{}{ f, b }
 err := u.Add(additions...)
 ```
 
 ### Updating
+
 When modifying existing entities, use [`Alter`][unit-doc]:
+
 ```go
 updates := []interface{}{ f, b }
 err := u.Alter(updates...)
 ```
 
 ### Removing
+
 When removing existing entities, use [`Remove`][unit-doc]:
+
 ```go
 removals := []interface{}{ f, b }
 err := u.Remove(removals...)
 ```
 
-### Registering 
+### Registering
+
 When retrieving existing entities, track their intial state using
 [`Register`][unit-doc]:
+
 ```go
 fetched := []interface{}{ f, b }
 err := u.Register(fetched...)
 ```
 
 ### Saving
+
 When you are ready to commit your work unit, use [`Save`][unit-doc]:
+
 ```go
 ctx := context.Background()
 err := u.Save(ctx)
 ```
 
 ### Logging
-We use [`zap`][zap] as our logging library of choice. To leverage the logs
-emitted from the work units, utilize the [`unit.Logger`][unit-logger-doc]
-option with an instance of [`*zap.Logger`][logger-doc] upon creation:
+
+We support the following logging packages:
+
+- [`zap`][zap]
+- `log`
+- `log/slog`
+- [`logrus`][logrus]
+
+In addition, we also support custom loggers that implement the `unit.Logger`
+interface. For each approach, there is a corresponding option that can be
+specified during the creation of the work unit.
+
+The following example demonstrates how to use the `zap` logger:
+
 ```go
 // create logger.
 l, _ := zap.NewDevelopment()
@@ -78,16 +101,18 @@ l, _ := zap.NewDevelopment()
 opts = []unit.Option{
 	unit.DB(db),
 	unit.DataMappers(m),
-	unit.Logger(l), // 🎉
+	unit.ZapLogger(l), // 🎉
 }
 u, err := unit.New(opts...)
 ```
 
 ### Metrics
+
 For emitting metrics, we use [`tally`][tally]. To utilize the metrics emitted
 from the work units, leverage the [`unit.Scope`][unit-scope-doc] option
 with a [`tally.Scope`][scope-doc] upon creation. Assuming we have a
 scope `s`, it would look like so:
+
 ```go
 opts = []unit.Option{
 	unit.DB(db),
@@ -101,25 +126,27 @@ u, err := unit.New(opts...)
 
 <p align="center"><img src="https://user-images.githubusercontent.com/5921929/106403546-191daa80-63e4-11eb-98b5-6b5d1989bacb.gif" width="960"></p>
 
-| Name                             | Type    | Description                                                  |
-| -------------------------------- | ------- | ------------------------------------------------------------ |
-| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.                    |
-| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.                   |
-| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.                |
-| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.              |
-| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit.             |
-| [_PREFIX._]unit.retry.attempt    | counter | The number of retry attempts.                                |
-| [_PREFIX._]unit.insert           | counter | The number of successful inserts performed.                  |
-| [_PREFIX._]unit.update           | counter | The number of successful updates performed.                  |
-| [_PREFIX._]unit.delete           | counter | The number of successful deletes performed.                  |
-| [_PREFIX._]unit.cache.insert     | counter | The number of registered entities inserted into the cache.   |
-| [_PREFIX._]unit.cache.delete     | counter | The number of registered entities removed from the cache.    |
+| Name                             | Type    | Description                                                |
+| -------------------------------- | ------- | ---------------------------------------------------------- |
+| [_PREFIX._]unit.save.success     | counter | The number of successful work unit saves.                  |
+| [_PREFIX._]unit.save             | timer   | The time duration when saving a work unit.                 |
+| [_PREFIX._]unit.rollback.success | counter | The number of successful work unit rollbacks.              |
+| [_PREFIX._]unit.rollback.failure | counter | The number of unsuccessful work unit rollbacks.            |
+| [_PREFIX._]unit.rollback         | timer   | The time duration when rolling back a work unit.           |
+| [_PREFIX._]unit.retry.attempt    | counter | The number of retry attempts.                              |
+| [_PREFIX._]unit.insert           | counter | The number of successful inserts performed.                |
+| [_PREFIX._]unit.update           | counter | The number of successful updates performed.                |
+| [_PREFIX._]unit.delete           | counter | The number of successful deletes performed.                |
+| [_PREFIX._]unit.cache.insert     | counter | The number of registered entities inserted into the cache. |
+| [_PREFIX._]unit.cache.delete     | counter | The number of registered entities removed from the cache.  |
 
 ### Uniters
+
 In most circumstances, an application has many aspects that result in the
 creation of a work unit. To tackle that challenge, we recommend using
 [`unit.Uniter`][uniter-doc] to create instances of [`unit.`][unit-doc],
 like so:
+
 ```go
 opts = []unit.Option{
 	unit.DB(db),
@@ -164,6 +191,9 @@ supported data mapper operations follow this paradigm.
 [db-doc]: https://golang.org/pkg/database/sql/#DB
 [unit-doc]: https://godoc.org/github.com/freerware/work#Unit
 [zap]: https://github.com/uber-go/zap
+[log-doc]: https://pkg.go.dev/log
+[slog-doc]: https://pkg.go.dev/log/slog
+[logrus]: https://github.com/sirupsen/logrus
 [tally]: https://github.com/uber-go/tally
 [logger-doc]: https://godoc.org/go.uber.org/zap#Logger
 [scope-doc]: https://godoc.org/github.com/uber-go/tally#Scope

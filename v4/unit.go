@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/freerware/work/v4/internal/adapters"
 	"github.com/uber-go/tally/v4"
-	"go.uber.org/zap"
 )
 
 // Metric scope name definitions.
@@ -88,7 +88,7 @@ type unit struct {
 	alterationCount int
 	removalCount    int
 	registerCount   int
-	logger          *zap.Logger
+	logger          UnitLogger
 	scope           tally.Scope
 	actions         map[UnitActionType][]UnitAction
 	mutex           sync.RWMutex
@@ -102,7 +102,7 @@ type unit struct {
 func options(options []UnitOption) UnitOptions {
 	// set defaults.
 	o := UnitOptions{
-		logger:             zap.NewNop(),
+		logger:             adapters.NewNopLogger(),
 		scope:              tally.NoopScope,
 		actions:            make(map[UnitActionType][]UnitAction),
 		retryAttempts:      3,
@@ -136,11 +136,7 @@ func NewUnit(opts ...UnitOption) (Unit, error) {
 		retry.DelayType(options.retryType.convert()),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
-			options.logger.Warn(
-				"attempted retry",
-				zap.Int("attempt", int(attempt+1)),
-				zap.Error(err),
-			)
+			options.logger.Warn("attempted retry", "attempt", int(attempt+1), "error", err.Error())
 			options.scope.Counter(retryAttempt).Inc(1)
 		}),
 	}
@@ -189,7 +185,7 @@ func (u *unit) Register(ctx context.Context, entities ...interface{}) (err error
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
 		if !u.hasDeleteFunc(t) && !u.hasInsertFunc(t) && !u.hasUpdateFunc(t) {
-			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			u.logger.Error(ErrMissingDataMapper.Error(), "typeName", t.String())
 			return ErrMissingDataMapper
 		}
 
@@ -217,7 +213,7 @@ func (u *unit) Add(ctx context.Context, entities ...interface{}) (err error) {
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
 		if !u.hasDeleteFunc(t) {
-			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			u.logger.Error(ErrMissingDataMapper.Error(), "typeName", t.String())
 			return ErrMissingDataMapper
 		}
 
@@ -238,7 +234,7 @@ func (u *unit) Alter(ctx context.Context, entities ...interface{}) (err error) {
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
 		if !u.hasUpdateFunc(t) {
-			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			u.logger.Error(ErrMissingDataMapper.Error(), "typeName", t.String())
 			return ErrMissingDataMapper
 		}
 
@@ -263,7 +259,7 @@ func (u *unit) Remove(ctx context.Context, entities ...interface{}) (err error) 
 	for _, entity := range entities {
 		t := TypeNameOf(entity)
 		if !u.hasDeleteFunc(t) {
-			u.logger.Error(ErrMissingDataMapper.Error(), zap.String("typeName", t.String()))
+			u.logger.Error(ErrMissingDataMapper.Error(), "typeName", t.String())
 			return ErrMissingDataMapper
 		}
 
