@@ -68,9 +68,20 @@ err := u.Save(ctx)
 ```
 
 ### Logging
-We use [`zap`][zap] as our logging library of choice. To leverage the logs
-emitted from the work units, utilize the [`unit.Logger`][unit-logger-doc]
-option with an instance of [`*zap.Logger`][logger-doc] upon creation:
+
+We support the following logging packages:
+
+- [`zap`][zap]
+- `log`
+- `log/slog`
+- [`logrus`][logrus]
+
+In addition, we also support custom loggers that implement the `unit.Logger`
+interface. For each approach, there is a corresponding option that can be
+specified during the creation of the work unit.
+
+The following example demonstrates how to use the `zap` logger:
+
 ```go
 // create logger.
 l, _ := zap.NewDevelopment()
@@ -164,6 +175,9 @@ supported data mapper operations follow this paradigm.
 [db-doc]: https://golang.org/pkg/database/sql/#DB
 [unit-doc]: https://godoc.org/github.com/freerware/work#Unit
 [zap]: https://github.com/uber-go/zap
+[log-doc]: https://pkg.go.dev/log
+[slog-doc]: https://pkg.go.dev/log/slog
+[logrus]: https://github.com/sirupsen/logrus
 [tally]: https://github.com/uber-go/tally
 [logger-doc]: https://godoc.org/go.uber.org/zap#Logger
 [scope-doc]: https://godoc.org/github.com/uber-go/tally#Scope
