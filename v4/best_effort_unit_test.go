@@ -113,15 +113,12 @@ func (s *BestEffortUnitTestSuite) Setup() {
 	fooTypeName := work.TypeNameOf(foo)
 	bar := test.Bar{ID: "28"}
 	barTypeName := work.TypeNameOf(bar)
-	biz := test.Biz{Identifier: "28"}
-	bizTypeName := work.TypeNameOf(biz)
 
 	// initialize mocks.
 	s.mc = gomock.NewController(s.T())
 	s.mappers = make(map[work.TypeName]*mock.UnitDataMapper)
 	s.mappers[fooTypeName] = mock.NewUnitDataMapper(s.mc)
 	s.mappers[barTypeName] = mock.NewUnitDataMapper(s.mc)
-	s.mappers[bizTypeName] = mock.NewUnitDataMapper(s.mc)
 
 	// construct SUT.
 	dm := make(map[work.TypeName]work.UnitDataMapper)
@@ -154,9 +151,8 @@ func (s *BestEffortUnitTestSuite) SetupTest() {
 
 func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 	foos := []interface{}{test.Foo{ID: 28}, test.Foo{ID: 1992}, test.Foo{ID: 2}, test.Foo{ID: 1111}}
-	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}, test.Bar{ID: "2022"}}
-	bizs := []interface{}{test.Biz{Identifier: "ID"}, test.Biz{Identifier: "1992"}, test.Biz{Identifier: "2022"}}
-	fooType, barType, bizType := work.TypeNameOf(test.Foo{}), work.TypeNameOf(test.Bar{}), work.TypeNameOf(test.Biz{})
+	bars := []interface{}{test.Bar{ID: "ID"}, test.Bar{ID: "1992"}}
+	fooType, barType := work.TypeNameOf(test.Foo{}), work.TypeNameOf(test.Bar{})
 	return []TableDrivenTest{
 		{
 			name:      "InsertError",
@@ -465,26 +461,27 @@ func (s *BestEffortUnitTestSuite) subtests() []TableDrivenTest {
 			name:      "DeleteAndRollbackError",
 			additions: []interface{}{foos[0]},
 			alters:    []interface{}{foos[1], bars[1]},
-			removals:  []interface{}{foos[2], bars[2], bizs[0]},
+			removals:  []interface{}{foos[2]},
 			registers: []interface{}{foos[1], bars[1], foos[3]},
 			expectations: func(ctx context.Context, registers, additions, alters, removals []interface{}) {
+				// arrange - successfully apply inserts.
+				s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil).Times(s.retryCount)
 				for i := 0; i < s.retryCount; i++ {
-					// arrange - successfully apply inserts.
-					s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), additions[0]).Return(nil)
-
 					// arrange - successfully apply updates.
-					s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
-					s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+					applyFooUpdate := s.mappers[fooType].EXPECT().Update(ctx, gomock.Any(), alters[0]).Return(nil)
+					applyBarUpdate := s.mappers[barType].EXPECT().Update(ctx, gomock.Any(), alters[1]).Return(nil)
+
+					// arrange - successfully roll back updates.
+					s.mappers[fooType].EXPECT().
+						Update(ctx, gomock.Any(), []interface{}{registers[0], registers[2]}).Return(nil).After(applyFooUpdate)
+					s.mappers[barType].EXPECT().
+						Update(ctx, gomock.Any(), registers[1]).Return(nil).After(applyBarUpdate)
 
 					// arrange - encounter delete error.
-					s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(nil)
-					s.mappers[barType].EXPECT().Delete(ctx, gomock.Any(), removals[1]).Return(nil)
-					s.mappers[bizType].EXPECT().Delete(ctx, gomock.Any(), removals[2]).Return(errors.New("whoa"))
+					applyDelete := s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), removals[0]).Return(errors.New("whoa"))
 
-					// arrange - fail to roll back deletes.
-					s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), removals[0]).Return(nil).AnyTimes()
-					s.mappers[fooType].EXPECT().Insert(ctx, gomock.Any(), removals[2]).Return(nil).AnyTimes()
-					s.mappers[barType].EXPECT().Insert(ctx, gomock.Any(), removals[1]).Return(errors.New("ouch"))
+					// arrange - encounter error when rolling back inserts.
+					s.mappers[fooType].EXPECT().Delete(ctx, gomock.Any(), additions[0]).Return(errors.New("ouch")).After(applyDelete)
 				}
 			},
 			ctx:        context.Background(),
