@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ var (
 	// when attempting to add, alter, remove, or register an entity
 	// that doesn't have a corresponding data mapper.
 	ErrMissingDataMapper = work.ErrMissingDataMapper
+
 	// ErrNoDataMapper represents the error that occurs when attempting
 	// to create a work unit without any data mappers.
 	ErrNoDataMapper = work.ErrNoDataMapper
@@ -68,8 +69,18 @@ var (
 	// DataMappers specifies the option to provide the data mappers for
 	// the work unit.
 	DataMappers = work.UnitDataMappers
-	// ZapLogger specifies the option to provide a zap logger for the work unit.
-	ZapLogger = work.UnitZapLogger
+	// WithZapLogger specifies the option to provide a Zap logger for the work unit.
+	WithZapLogger = work.UnitWithZapLogger
+	// WithLogger specifies the option to provide a custom logger for the work unit.
+	WithLogger = work.UnitWithLogger
+	// WithLogrusLogger specifies the option to provide a Logrus logger for the work unit.
+	WithLogrusLogger = work.UnitWithLogrusLogger
+	// WithStandardLogger specifies the option to provide a logger as defined
+	// in the 'log' standard library package for the work unit.
+	WithStandardLogger = work.UnitWithStandardLogger
+	// WithStructuredLogger specifies the option to provide a structured logger as defined
+	// in the 'log/slog' standard library package for the work unit.
+	WithStructuredLogger = work.UnitWithStructuredLogger
 	// TallyMetricScope specifies the option to provide a tally metric scope for the work unit.
 	TallyMetricScope = work.UnitTallyMetricScope
 	// AfterRegisterActions specifies the option to provide actions to execute
@@ -136,6 +147,8 @@ var (
 	// DeleteFunc defines the function to be used for deleting existing
 	// entities in the underlying data store.
 	DeleteFunc = work.UnitDeleteFunc
+	// WithCacheClient defines the cache client to be used.
+	WithCacheClient = work.UnitWithCacheClient
 )
 
 /* Actions. */
@@ -217,3 +230,8 @@ type DataMapper = work.UnitDataMapper
 // DataMapperFunc represents a data mapper function that performs a single
 // operation, such as insert, update, or delete.
 type DataMapperFunc = work.UnitDataMapperFunc
+
+/* Logging. */
+
+// Logger represents a logger.
+type Logger = work.UnitLogger

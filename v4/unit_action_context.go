@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@ package work
 
 import (
 	"github.com/uber-go/tally/v4"
-	"go.uber.org/zap"
 )
 
 // UnitActionContext represents the executional context for an action.
 type UnitActionContext struct {
 	// Logger is the work units configured logger.
-	Logger *zap.Logger
+	Logger UnitLogger
 	// Scope is the work units configured metrics scope.
 	Scope tally.Scope
 	// AdditionCount represents the number of entities indicated as new.

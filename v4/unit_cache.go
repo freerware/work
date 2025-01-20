@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,44 @@
 package work
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/uber-go/tally/v4"
 )
 
+type memoryCacheClient struct {
+	m sync.Map
+}
+
+func (mcc *memoryCacheClient) Delete(ctx context.Context, key string) (err error) {
+	mcc.m.Delete(key)
+	return
+}
+
+func (mcc *memoryCacheClient) Get(ctx context.Context, key string) (entry interface{}, err error) {
+	entry, _ = mcc.m.Load(key)
+	return
+}
+
+func (mcc *memoryCacheClient) Set(ctx context.Context, key string, entry interface{}) (err error) {
+	mcc.m.Store(key, entry)
+	return
+}
+
+// UnitCacheClient represents a client for a cache provider.
+type UnitCacheClient interface {
+	Get(context.Context, string) (interface{}, error)
+	Set(context.Context, string, interface{}) error
+	Delete(context.Context, string) error
+}
+
 // UnitCache represents the cache that the work unit manipulates as a result
 // of entity registration.
 type UnitCache struct {
-	m sync.Map
+	cc UnitCacheClient
 
 	scope tally.Scope
 }
@@ -36,49 +64,36 @@ var (
 	ErrUncachableEntity = errors.New("unable to cache entity - does not implement supported interfaces")
 )
 
+func cacheKey(t TypeName, id interface{}) string {
+	return fmt.Sprintf("%s-%v", string(t), id)
+}
+
 // Delete removes an entity from the work unit cache.
-func (uc *UnitCache) delete(entity interface{}) {
+func (uc *UnitCache) delete(ctx context.Context, entity interface{}) (err error) {
 	t := TypeNameOf(entity)
 	if id, ok := id(entity); ok {
-		if entitiesByID, ok := uc.m.Load(t); ok {
-			if entityMap, ok := entitiesByID.(*sync.Map); ok {
-				entityMap.Delete(id)
-				uc.scope.Counter(cacheDelete).Inc(1)
-			}
+		if err = uc.cc.Delete(ctx, cacheKey(t, id)); err == nil {
+			uc.scope.Counter(cacheDelete).Inc(1)
 		}
 	}
+	return
 }
 
 // Store places the provided entity in the work unit cache.
-func (uc *UnitCache) store(entity interface{}) (err error) {
+func (uc *UnitCache) store(ctx context.Context, entity interface{}) (err error) {
 	id, ok := id(entity)
 	if !ok {
-		err = ErrUncachableEntity
-		return
+		return ErrUncachableEntity
 	}
 	t := TypeNameOf(entity)
-	if cached, ok := uc.m.Load(t); !ok {
-		entitiesByID := &sync.Map{}
-		entitiesByID.Store(id, entity)
-		uc.m.Store(t, entitiesByID)
+	if err = uc.cc.Set(ctx, cacheKey(t, id), entity); err == nil {
 		uc.scope.Counter(cacheInsert).Inc(1)
-		return
-	} else {
-		if entityMap, ok := cached.(*sync.Map); ok {
-			entityMap.Store(id, entity)
-			uc.scope.Counter(cacheInsert).Inc(1)
-		}
-		return
 	}
+	return
 }
 
 // Load retrieves the entity with the provided type name and ID from the work
 // unit cache.
-func (uc *UnitCache) Load(t TypeName, id interface{}) (entity interface{}, loaded bool) {
-	if entitiesByID, ok := uc.m.Load(t); ok {
-		if entityMap, ok := entitiesByID.(*sync.Map); ok {
-			entity, loaded = entityMap.Load(id)
-		}
-	}
-	return
+func (uc *UnitCache) Load(ctx context.Context, t TypeName, id interface{}) (entity interface{}, err error) {
+	return uc.cc.Get(ctx, cacheKey(t, id))
 }

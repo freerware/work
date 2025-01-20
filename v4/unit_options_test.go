@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,15 @@ package work
 
 import (
 	"context"
+	"log"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/freerware/work/v4/internal/adapters"
 	"github.com/freerware/work/v4/internal/test"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally/v4"
 	"go.uber.org/zap"
@@ -117,17 +121,61 @@ func (s *UnitOptionsTestSuite) TestUnitDeleteFunc() {
 	s.NotNil(s.sut.deleteFuncs)
 }
 
-func (s *UnitOptionsTestSuite) TestUnitLogger() {
+func (s *UnitOptionsTestSuite) TestUnitZapLogger() {
 	// arrange.
 	c := zap.NewDevelopmentConfig()
 	c.DisableStacktrace = true
 	l, _ := c.Build()
 
 	// action.
-	UnitZapLogger(l)(s.sut)
+	UnitWithZapLogger(l)(s.sut)
 
 	// assert.
-	s.Equal(l, s.sut.logger)
+	s.IsType(&adapters.ZapLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitStandardLogger() {
+	// arrange.
+	l := log.Default()
+
+	// action.
+	UnitWithStandardLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&adapters.StandardLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitStructuredLogger() {
+	// arrange.
+	l := slog.Default()
+
+	// action.
+	UnitWithStructuredLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&adapters.StructuredLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitLogrusLogger() {
+	// arrange.
+	l := logrus.StandardLogger()
+
+	// action.
+	UnitWithLogrusLogger(l)(s.sut)
+
+	// assert.
+	s.IsType(&adapters.LogrusLogger{}, s.sut.logger)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitLogger() {
+	// arrange.
+	l := logrus.StandardLogger()
+
+	// action.
+	UnitWithLogger(adapters.NewLogrusLogger(l))(s.sut)
+
+	// assert.
+	s.IsType(&adapters.LogrusLogger{}, s.sut.logger)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitScope() {
@@ -439,6 +487,17 @@ func (s *UnitOptionsTestSuite) TestUnitRetryType() {
 
 	// assert.
 	s.Equal(t, s.sut.retryType)
+}
+
+func (s *UnitOptionsTestSuite) TestUnitWithCacheClient() {
+	// arrange.
+	cacheClient := &memoryCacheClient{}
+
+	// action.
+	UnitWithCacheClient(cacheClient)(s.sut)
+
+	// assert.
+	s.Equal(cacheClient, s.sut.cacheClient)
 }
 
 func (s *UnitOptionsTestSuite) TearDownTest() {

@@ -15,8 +15,17 @@
 
 package work
 
-// identifierer represents an object defined by its identity, not by its attributes.
-type identifierer interface {
-	// Identifier retrieves the identity for the object.
-	Identifier() interface{}
+// UnitLogger represents a type responsible for performing logging behaviors.
+type UnitLogger interface {
+	// Debug logs the provided message with arguments as a 'debug' level message.
+	Debug(msg string, args ...any)
+
+	// Info logs the provided message with arguments as a 'info' level message.
+	Info(msg string, args ...any)
+
+	// Warn logs the provided message with arguments as a 'warn' level message.
+	Warn(msg string, args ...any)
+
+	// Error logs the provided message with arguments as an 'error' level message.
+	Error(msg string, args ...any)
 }
