@@ -25,13 +25,13 @@ func NewNopLogger() *NopLogger {
 }
 
 // Debug does nothing.
-func (adapter *NopLogger) Debug(args ...any) {}
+func (adapter *NopLogger) Debug(msg string, args ...any) {}
 
 // Info does nothing.
-func (adapter *NopLogger) Info(args ...any) {}
+func (adapter *NopLogger) Info(msg string, args ...any) {}
 
 // Warn does nothing.
-func (adapter *NopLogger) Warn(args ...any) {}
+func (adapter *NopLogger) Warn(msg string, args ...any) {}
 
 // Error does nothing.
-func (adapter *NopLogger) Error(args ...any) {}
+func (adapter *NopLogger) Error(msg string, args ...any) {}

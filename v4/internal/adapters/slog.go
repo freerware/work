@@ -29,40 +29,22 @@ func NewStructuredLogger(logger *slog.Logger) *StructuredLogger {
 	return &StructuredLogger{l: logger}
 }
 
-// message extracts the message from the provided arguments.
-func (adapter *StructuredLogger) message(args ...any) (msg string, ok bool) {
-	if len(args) == 0 {
-		return
-	}
-
-	msg, ok = args[0].(string)
-	return
+// Debug logs the provided message with arguments as a 'debug' level message.
+func (adapter *StructuredLogger) Debug(msg string, args ...any) {
+	adapter.l.Debug(msg, args...)
 }
 
-// Debug logs the provided arguments as a 'debug' level message.
-func (adapter *StructuredLogger) Debug(args ...any) {
-	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Debug(msg, args[1:]...)
-	}
+// Info logs the provided message with arguments as a 'info' level message.
+func (adapter *StructuredLogger) Info(msg string, args ...any) {
+	adapter.l.Info(msg, args...)
 }
 
-// Info logs the provided arguments as a 'info' level message.
-func (adapter *StructuredLogger) Info(args ...any) {
-	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Info(msg, args[1:]...)
-	}
+// Warn logs the provided message with arguments as a 'warn' level message.
+func (adapter *StructuredLogger) Warn(msg string, args ...any) {
+	adapter.l.Warn(msg, args...)
 }
 
-// Warn logs the provided arguments as a 'warn' level message.
-func (adapter *StructuredLogger) Warn(args ...any) {
-	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Warn(msg, args[1:]...)
-	}
-}
-
-// Error logs the provided arguments as an 'error' level message.
-func (adapter *StructuredLogger) Error(args ...any) {
-	if msg, ok := adapter.message(args...); ok {
-		adapter.l.Error(msg, args[1:]...)
-	}
+// Error logs the provided message with arguments as an 'error' level message.
+func (adapter *StructuredLogger) Error(msg string, args ...any) {
+	adapter.l.Error(msg, args...)
 }

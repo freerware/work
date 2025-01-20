@@ -164,7 +164,7 @@ func (s *UnitOptionsTestSuite) TestUnitLogrusLogger() {
 	UnitWithLogrusLogger(l)(s.sut)
 
 	// assert.
-	s.IsType(&logrus.Logger{}, s.sut.logger)
+	s.IsType(&adapters.LogrusLogger{}, s.sut.logger)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitLogger() {
@@ -172,10 +172,10 @@ func (s *UnitOptionsTestSuite) TestUnitLogger() {
 	l := logrus.StandardLogger()
 
 	// action.
-	UnitWithLogger(l)(s.sut)
+	UnitWithLogger(adapters.NewLogrusLogger(l))(s.sut)
 
 	// assert.
-	s.IsType(&logrus.Logger{}, s.sut.logger)
+	s.IsType(&adapters.LogrusLogger{}, s.sut.logger)
 }
 
 func (s *UnitOptionsTestSuite) TestUnitScope() {

@@ -180,7 +180,7 @@ var (
 
 	// UnitWithLogrusLogger specifies the option to provide a Logrus logger for the work unit.
 	UnitWithLogrusLogger = func(l *logrus.Logger) UnitOption {
-		return UnitWithLogger(l)
+		return UnitWithLogger(adapters.NewLogrusLogger(l))
 	}
 
 	// UnitWithLogger specifies the option to provide a custom logger for the work unit.

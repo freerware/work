@@ -16,35 +16,35 @@
 package adapters
 
 import (
-	"go.uber.org/zap"
+	"github.com/sirupsen/logrus"
 )
 
-// ZapLogger represents an adapter for the Zap logger.
-type ZapLogger struct {
-	l *zap.Logger
+// LogrusLogger represents an adapter for the Zap logger.
+type LogrusLogger struct {
+	l *logrus.Logger
 }
 
-// NewZapLogger creates a Zap logger adapter for the provided logger.
-func NewZapLogger(logger *zap.Logger) *ZapLogger {
-	return &ZapLogger{l: logger}
+// NewLogrusLogger creates a Logrus logger adapter for the provided logger.
+func NewLogrusLogger(logger *logrus.Logger) *LogrusLogger {
+	return &LogrusLogger{l: logger}
 }
 
 // Debug logs the provided message with arguments as a 'debug' level message.
-func (adapter *ZapLogger) Debug(msg string, args ...any) {
-	adapter.l.Sugar().Debugw(msg, args...)
+func (adapter *LogrusLogger) Debug(msg string, args ...any) {
+	adapter.l.Debug(append([]any{msg}, args...))
 }
 
 // Info logs the provided message with arguments as a 'info' level message.
-func (adapter *ZapLogger) Info(msg string, args ...any) {
-	adapter.l.Sugar().Infow(msg, args...)
+func (adapter *LogrusLogger) Info(msg string, args ...any) {
+	adapter.l.Info(append([]any{msg}, args...))
 }
 
 // Warn logs the provided message with arguments as a 'warn' level message.
-func (adapter *ZapLogger) Warn(msg string, args ...any) {
-	adapter.l.Sugar().Warnw(msg, args...)
+func (adapter *LogrusLogger) Warn(msg string, args ...any) {
+	adapter.l.Warn(append([]any{msg}, args...))
 }
 
 // Error logs the provided message with arguments as an 'error' level message.
-func (adapter *ZapLogger) Error(msg string, args ...any) {
-	adapter.l.Sugar().Errorw(msg, args...)
+func (adapter *LogrusLogger) Error(msg string, args ...any) {
+	adapter.l.Error(append([]any{msg}, args...))
 }

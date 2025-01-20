@@ -30,21 +30,21 @@ func NewStandardLogger(logger *log.Logger) *StandardLogger {
 }
 
 // Debug logs the provided arguments as a 'debug' level message.
-func (adapter *StandardLogger) Debug(args ...any) {
-	adapter.l.Println(args...)
+func (adapter *StandardLogger) Debug(msg string, args ...any) {
+	adapter.l.Println(append([]any{msg}, args...))
 }
 
 // Info logs the provided arguments as a 'info' level message.
-func (adapter *StandardLogger) Info(args ...any) {
-	adapter.l.Println(args...)
+func (adapter *StandardLogger) Info(msg string, args ...any) {
+	adapter.l.Println(append([]any{msg}, args...))
 }
 
 // Warn logs the provided arguments as a 'warn' level message.
-func (adapter *StandardLogger) Warn(args ...any) {
-	adapter.l.Println(args...)
+func (adapter *StandardLogger) Warn(msg string, args ...any) {
+	adapter.l.Println(append([]any{msg}, args...))
 }
 
 // Error logs the provided arguments as an 'error' level message.
-func (adapter *StandardLogger) Error(args ...any) {
-	adapter.l.Println(args...)
+func (adapter *StandardLogger) Error(msg string, args ...any) {
+	adapter.l.Println(append([]any{msg}, args...))
 }

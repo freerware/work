@@ -17,15 +17,15 @@ package work
 
 // UnitLogger represents a type responsible for performing logging behaviors.
 type UnitLogger interface {
-	// Debug logs the provided arguments as a 'debug' level message.
-	Debug(...any)
+	// Debug logs the provided message with arguments as a 'debug' level message.
+	Debug(msg string, args ...any)
 
-	// Info logs the provided arguments as a 'info' level message.
-	Info(...any)
+	// Info logs the provided message with arguments as a 'info' level message.
+	Info(msg string, args ...any)
 
-	// Warn logs the provided arguments as a 'warn' level message.
-	Warn(...any)
+	// Warn logs the provided message with arguments as a 'warn' level message.
+	Warn(msg string, args ...any)
 
-	// Error logs the provided arguments as an 'error' level message.
-	Error(...any)
+	// Error logs the provided message with arguments as an 'error' level message.
+	Error(msg string, args ...any)
 }
