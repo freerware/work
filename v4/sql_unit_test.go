@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,7 +134,7 @@ func (s *SQLUnitTestSuite) Setup() {
 	s.scope = ts
 	opts := []work.UnitOption{
 		work.UnitDataMappers(dm),
-		work.UnitZapLogger(l),
+		work.UnitWithZapLogger(l),
 		work.UnitTallyMetricScope(ts),
 		work.UnitDB(s.db),
 		work.UnitRetryAttempts(s.retryCount),

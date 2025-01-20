@@ -13,10 +13,25 @@
  * limitations under the License.
  */
 
-package work
+package adapters
 
-// identifierer represents an object defined by its identity, not by its attributes.
-type identifierer interface {
-	// Identifier retrieves the identity for the object.
-	Identifier() interface{}
+// NopLogger represents an adapter for a no-op logger.
+type NopLogger struct {
 }
+
+// NewNopLogger creates a no-op logger adapter that does nothing.
+func NewNopLogger() *NopLogger {
+	return &NopLogger{}
+}
+
+// Debug does nothing.
+func (adapter *NopLogger) Debug(msg string, args ...any) {}
+
+// Info does nothing.
+func (adapter *NopLogger) Info(msg string, args ...any) {}
+
+// Warn does nothing.
+func (adapter *NopLogger) Warn(msg string, args ...any) {}
+
+// Error does nothing.
+func (adapter *NopLogger) Error(msg string, args ...any) {}

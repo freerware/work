@@ -1,4 +1,4 @@
-/* Copyright 2022 Freerware
+/* Copyright 2025 Freerware
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 )
 
 var (
@@ -63,7 +62,7 @@ func (u *sqlUnit) applyInserts(ctx context.Context, mCtx UnitMapperContext) (err
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
 				err = multierr.Combine(err, errRollback)
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 		}
@@ -80,7 +79,7 @@ func (u *sqlUnit) applyUpdates(ctx context.Context, mCtx UnitMapperContext) (err
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
 				err = multierr.Combine(err, errRollback)
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 		}
@@ -98,7 +97,7 @@ func (u *sqlUnit) applyDeletes(ctx context.Context, mCtx UnitMapperContext) (err
 					u.executeActions(UnitActionTypeAfterRollback)
 				}
 				err = multierr.Combine(err, errRollback)
-				u.logger.Error(err.Error(), zap.String("typeName", typeName.String()))
+				u.logger.Error(err.Error(), "typeName", typeName.String())
 				return
 			}
 		}
@@ -127,7 +126,7 @@ func (u *sqlUnit) save(ctx context.Context) (err error) {
 			}
 			msg := "panic: unable to save work unit"
 			err = multierr.Combine(fmt.Errorf("%s\n%v", msg, r), err)
-			u.logger.Error(msg, zap.String("panic", fmt.Sprintf("%v", r)))
+			u.logger.Error(msg, "panic", fmt.Sprintf("%v", r))
 			panic(r)
 		}
 	}()
